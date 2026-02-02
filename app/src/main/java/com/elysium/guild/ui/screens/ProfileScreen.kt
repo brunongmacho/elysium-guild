@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -117,6 +118,7 @@ fun ProfileScreen(
         }
         UpdateState.UpToDate -> {
             LaunchedEffect(Unit) {
+                Toast.makeText(context, "App is up to date", Toast.LENGTH_SHORT).show()
                 viewModel.resetUpdateState()
             }
         }

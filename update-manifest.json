@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 2,
-  "latestVersionName": "1.0.1",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.1/app-release.apk",
-  "releaseNotes": "- Added auto-update system\n- Improved Boss Timer UI\n- Fixed haptic feedback logic",
+  "latestVersionCode": 3,
+  "latestVersionName": "1.0.2",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.2/app-release-unsigned.apk",
+  "releaseNotes": "- Added a friendly \"Up to date\" message when checking for updates.\n- Improved download resilience and error reporting.",
   "isForceUpdate": false
 }
