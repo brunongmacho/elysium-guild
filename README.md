@@ -1,177 +1,77 @@
 # Elysium Guild Mobile App
 
-A modern Android application for guild management that complements the Elysium Dashboard and Attendance Bot.
+A modern, high-performance Android application built with Jetpack Compose, designed for elite guild management. This app integrates directly with the Elysium Dashboard API to provide real-time tracking of world bosses, guild events, and member performance.
 
-## Features
+## 🚀 Version 1.0.8 (Current)
+*   **Auto-Update Engine**: Fully integrated with GitHub Releases. The app automatically detects, downloads, and installs updates from the `brunongmacho/elysium-guild` repository.
+*   **Permanent Signing**: Uses a stable cryptographic signature (`debug.keystore`) to ensure seamless updates without "conflict" errors.
+*   **System Permissions Integration**: A consolidated dashboard in Settings for managing Notifications, Exact Alarms, Battery Optimization, and APK Installation permissions.
+*   **Performance Optimization**: Purged all legacy widget code and Glance dependencies to reduce APK size and memory footprint.
 
-### 🎯 Boss Timers
-- Real-time boss spawn timers
-- Filter by status (Ready, Spawning Soon, Overdue)
-- Mark bosses as killed directly from the app
-- Visual status indicators
-- Push notifications for upcoming spawns
+## 🎯 Core Features
 
-### 🏆 Leaderboards
-- Attendance rankings
-- Points rankings
-- Top 3 podium display
-- Member profiles with avatars
-- Real-time updates
+### 1. Boss Timers (Real-Time)
+*   **Live Countdown**: Track precise spawn times for all world bosses.
+*   **Smart Filtering**: Categorize bosses by `Ready`, `Soon` (within 30m), and `Tracking`.
+*   **Haptic Alerts**: Tactile feedback on status changes and pull-to-refresh actions.
+*   **Visual Progress**: Gradient-coded status rings and progress bars for "Spawning Soon" states.
+*   **Call to Arms**: Quick-share boss status to Discord/Clipboard with one tap.
 
-### 📅 Guild Events
-- Daily and weekly event schedules
-- Event reminders
-- Countdown timers
-- Filter by event type
+### 2. Guild Events
+*   **Dynamic Schedule**: Syncs with the dashboard to show daily/weekly guild activities.
+*   **Precise Reminders**: Local exact alarms notify you 10 minutes before an event starts.
+*   **Filterable Feed**: Toggle between different event types to stay focused.
 
-### 👤 Member Profile
-- Personal statistics
-- Points overview
-- Attendance history
-- Recent activity feed
-- Guild role display
+### 3. Leaderboards & Profiles
+*   **Competitive Rankings**: Track top performers in `Attendance` and `Points`.
+*   **Podium Display**: Special UI treatment for the Top 3 members.
+*   **Detailed Statistics**: View personal participation history and point accrual.
 
-## Technology Stack
+### 4. Advanced Settings
+*   **Theme Engine**: Support for `Light`, `Dark`, and `System` modes.
+*   **Permission Auditor**: Real-time status of required system permissions with deep links to fix them instantly.
+*   **Software Updates**: One-tap version checking with release notes display.
 
-- **Kotlin** - Modern Android development
-- **Jetpack Compose** - Modern UI toolkit
-- **Hilt** - Dependency injection
-- **Room** - Local database
-- **Retrofit** - Network requests
-- **Coroutines** - Asynchronous programming
-- **Navigation Component** - Navigation
-- **WorkManager** - Background tasks
+## 🛠 Tech Stack
+*   **Language**: Kotlin 1.9+
+*   **UI**: Jetpack Compose (Material 3)
+*   **Architecture**: MVVM with Clean Architecture principles
+*   **DI**: Hilt (Dagger)
+*   **Database**: Room (Local caching for offline access)
+*   **Networking**: Retrofit 2 + OkHttp 4
+*   **Async**: Kotlin Coroutines & Flow
+*   **Automation**: GitHub Actions (CI/CD)
 
-## Setup Instructions
-
-### Prerequisites
-
-1. Android Studio Hedgehog or later
-2. JDK 8 or higher
-3. Android SDK API 24+ (Android 7.0)
-
-### Configuration
-
-1. Update the base URL in `Constants.kt`:
-   ```kotlin
-   const val BASE_URL = "https://your-elysium-dashboard-url.com/"
-   ```
-
-2. Configure Discord OAuth integration in your dashboard
-
-3. Set up MongoDB connection for data synchronization
-
-### Building the APK
-
-1. Open the project in Android Studio
-2. Build → Build Bundle(s)/APK(s) → Build APK(s)
-3. APK will be generated in `app/build/outputs/apk/`
-
-### Command Line Build
-
-```bash
-cd elysium-apk
-./gradlew assembleDebug          # Debug APK
-./gradlew assembleRelease       # Release APK
+## 🏗 Project Architecture
+```
+com.elysium.guild/
+├── di/                  # Hilt modules for Network, Database, and Utils
+├── ui/
+│   ├── screens/         # BossTimers, Leaderboard, Events, Profile
+│   ├── components/      # Glassmorphic UI, BossCards, Profile widgets
+│   └── theme/           # Material 3 Color Schemes and Typography
+├── viewmodel/           # State management for all major screens
+├── models/              # POJO and Room Entity definitions
+├── network/             # Retrofit interfaces for Dashboard and Updates
+├── repository/          # Single source of truth for data flow
+├── database/            # Room Database and DAO definitions
+└── utils/               # UpdateManager, NotificationHelper, Constants
 ```
 
-## Project Structure
+## 📦 Setup & Deployment
 
-```
-app/
-├── src/main/
-│   ├── java/com/elysium/guild/
-│   │   ├── ui/                  # UI components and screens
-│   │   │   ├── screens/         # Main screens
-│   │   │   ├── components/      # Reusable UI components
-│   │   │   └── theme/           # Theme and styling
-│   │   ├── viewmodels/          # ViewModels
-│   │   ├── models/              # Data models
-│   │   ├── network/             # API services
-│   │   ├── repository/          # Data repositories
-│   │   ├── database/            # Room database
-│   │   ├── di/                  # Dependency injection
-│   │   └── utils/              # Utilities
-│   ├── res/
-│   │   ├── layout/              # Compose layouts
-│   │   ├── values/              # Resources (strings, colors, etc.)
-│   │   └── drawable/           # Drawables
-│   └── AndroidManifest.xml
-├── build.gradle                 # App-level build configuration
-└── proguard-rules.pro          # ProGuard configuration
-```
+### For Developers
+1.  Open in **Android Studio Ladybug** (or later).
+2.  Ensure **JDK 17** is configured.
+3.  Set the `BASE_URL` in `Constants.kt` to point to your Koyeb/Backend instance.
 
-## API Integration
-
-The app integrates with your existing Elysium Dashboard API:
-
-### Endpoints Used
-- `GET /api/bosses` - Boss timer data
-- `POST /api/bosses/{name}` - Mark boss as killed
-- `GET /api/members` - Leaderboard data
-- `GET /api/events` - Event schedules
-- `GET /api/members/{id}` - Member profile
-
-### Authentication
-Uses Discord OAuth2 for secure member authentication.
-
-## Data Synchronization
-
-- **Real-time**: Live updates from the dashboard API
-- **Offline**: Cached data using Room database
-- **Background**: Automatic sync with WorkManager
-- **Push Notifications**: Boss spawn alerts and event reminders
-
-## Customization
-
-### Theming
-Update colors in `res/values/colors.xml`:
-```xml
-<color name="primary">#9333EA</color>
-<color name="secondary">#0EA5E9</color>
-```
-
-### Boss Configuration
-Boss data is fetched from your existing `boss_points.json` configuration.
-
-### Events
-Event schedules sync with your dashboard's event system.
-
-## Security
-
-- Network traffic uses HTTPS
-- API authentication tokens secured
-- Local data encrypted
-- ProGuard obfuscation enabled for release builds
-
-## Troubleshooting
-
-### Build Issues
-1. Ensure JDK 8+ is installed
-2. Update Android SDK and build tools
-3. Clean and rebuild project
-
-### API Connection Issues
-1. Verify `BASE_URL` in Constants.kt
-2. Check network permissions
-3. Test API endpoints manually
-
-### Runtime Issues
-1. Check logcat for errors
-2. Verify API endpoints are accessible
-3. Ensure proper authentication
-
-## Contributing
-
-1. Follow Android development best practices
-2. Use Kotlin coding conventions
-3. Write unit tests for new features
-4. Update documentation
-
-## License
-
-This project is part of the Elysium Guild tools suite.
+### For Releasing Updates
+The app uses a fully automated **GitHub Actions** pipeline:
+1.  Update `versionCode` in `app/build.gradle`.
+2.  Update `update-manifest.json` in the root folder.
+3.  Push changes: `git push origin main`.
+4.  Create a tag: `git tag v1.0.8 && git push origin v1.0.8`.
+5.  GitHub will build the APK and attach it to the release automatically.
 
 ---
-
-**Built with ❤️ for the Elysium Guild Community**
+**Built with ❤️ by the Elysium Development Team**
