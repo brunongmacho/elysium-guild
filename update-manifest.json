@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 6,
-  "latestVersionName": "1.0.5",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.5/app-debug.apk",
-  "releaseNotes": "- Purged all remaining widget code to fix build errors.\n- Incremented version to 1.0.5.\n- Note: Please uninstall the old version and install this one manually to sync signatures.",
+  "latestVersionCode": 7,
+  "latestVersionName": "1.0.6",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.6/app-debug.apk",
+  "releaseNotes": "- Established permanent signing key for conflict-free updates.\n- Finalized widget removal and UI cleanup.\n- From this version onwards, auto-updates will be seamless.",
   "isForceUpdate": false
 }

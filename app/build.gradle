@@ -11,12 +11,22 @@ android {
     namespace 'com.elysium.guild'
     compileSdk 35
 
+    signingConfigs {
+        debug {
+            // We point to a keystore file in the project so GitHub uses the same one
+            storeFile file("../debug.keystore")
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
     defaultConfig {
         applicationId "com.elysium.guild"
         minSdk 24
         targetSdk 34
-        versionCode 6
-        versionName "1.0.5"
+        versionCode 7
+        versionName "1.0.6"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -31,7 +41,7 @@ android {
         }
         debug {
             debuggable true
-            // This ensures GitHub builds use a standard naming convention
+            signingConfig signingConfigs.debug
             versionNameSuffix "-debug"
         }
     }
