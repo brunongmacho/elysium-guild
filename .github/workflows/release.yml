@@ -25,24 +25,24 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.9' # Force specific version that meets min requirement
+          gradle-version: '8.9'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Release APK
-        run: gradle assembleRelease # Use system gradle instead of ./gradlew
+      - name: Build Debug APK
+        run: gradle assembleDebug
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/app-release-unsigned.apk
+          files: app/build/outputs/apk/debug/app-debug.apk
           name: Release ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
           body: |
-            Automated Release for ${{ github.ref_name }}
-            Check update-manifest.json for details.
+            Automated Debug Release for ${{ github.ref_name }}
+            This version is signed with a debug key for easy testing.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

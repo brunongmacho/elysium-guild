@@ -59,7 +59,6 @@ class UpdateManager @Inject constructor(
             val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val uri = Uri.parse(apkUrl)
             
-            // Use app-specific external directory to avoid permission issues
             val destinationFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
             if (destinationFile.exists()) {
                 destinationFile.delete()
@@ -106,6 +105,7 @@ class UpdateManager @Inject constructor(
             val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
 
             if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                Log.d("UpdateManager", "Download successful, triggering install...")
                 installApk(file)
             } else {
                 val errorMsg = when (reason) {
@@ -116,11 +116,9 @@ class UpdateManager @Inject constructor(
                     DownloadManager.ERROR_INSUFFICIENT_SPACE -> "No storage space"
                     DownloadManager.ERROR_TOO_MANY_REDIRECTS -> "Too many redirects"
                     DownloadManager.ERROR_UNHANDLED_HTTP_CODE -> "HTTP Error: $reason"
-                    in 400..599 -> "Server Error: $reason (Check GitHub link)"
                     else -> "Reason code: $reason"
                 }
                 Toast.makeText(context, "Download failed: $errorMsg", Toast.LENGTH_LONG).show()
-                Log.e("UpdateManager", "Download failed with status $status and reason $reason")
             }
         }
         cursor.close()
@@ -128,7 +126,7 @@ class UpdateManager @Inject constructor(
 
     private fun installApk(file: File) {
         if (!file.exists()) {
-            Toast.makeText(context, "APK file not found after download", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "APK file not found", Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -140,15 +138,17 @@ class UpdateManager @Inject constructor(
             )
             
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(contentUri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                setDataAndType(contentUri, "application/vnd.android.package-archive")
             }
+            
+            Toast.makeText(context, "Opening installer...", Toast.LENGTH_SHORT).show()
             context.startActivity(installIntent)
         } catch (e: Exception) {
             Log.e("UpdateManager", "Installation failed", e)
-            Toast.makeText(context, "Installation failed: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Installation error: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 }
