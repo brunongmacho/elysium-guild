@@ -9,7 +9,6 @@ app/build/
 .gradle/
 build.gradle.cxx
 local.properties
-gradle.properties
 .kotlin/
 
 # Android Studio / IDE
