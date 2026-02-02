@@ -1,0 +1,66 @@
+package com.elysium.guild.database
+
+import androidx.room.*
+import kotlinx.coroutines.flow.Flow
+import com.elysium.guild.models.*
+
+@Dao
+interface BossTimerDao {
+    
+    @Query("SELECT * FROM boss_timers ORDER BY name ASC")
+    fun getAllBossTimers(): Flow<List<BossTimerEntity>>
+    
+    @Query("SELECT * FROM boss_timers WHERE id = :id")
+    suspend fun getBossTimerById(id: String): BossTimerEntity?
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(bossTimers: List<BossTimerEntity>): List<Long>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBossTimer(bossTimer: BossTimerEntity): Long
+    
+    @Query("DELETE FROM boss_timers")
+    suspend fun clearAll(): Int
+}
+
+@Dao
+interface LeaderboardDao {
+    
+    @Query("SELECT * FROM leaderboard WHERE type = :type ORDER BY weeklyRank ASC")
+    fun getLeaderboardByType(type: String): Flow<List<LeaderboardEntryEntity>>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(entries: List<LeaderboardEntryEntity>): List<Long>
+    
+    @Query("DELETE FROM leaderboard WHERE type = :type")
+    suspend fun clearByType(type: String): Int
+}
+
+@Dao
+interface EventsDao {
+    
+    @Query("SELECT * FROM events ORDER BY startTime ASC")
+    fun getAllEvents(): Flow<List<EventEntity>>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(events: List<EventEntity>): List<Long>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEvent(event: EventEntity): Long
+    
+    @Query("DELETE FROM events")
+    suspend fun clearAll(): Int
+}
+
+@Dao
+interface MemberProfileDao {
+    
+    @Query("SELECT * FROM member_profile WHERE memberId = :memberId")
+    suspend fun getMemberProfile(memberId: String): MemberProfileEntity?
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertProfile(profile: MemberProfileEntity): Long
+    
+    @Query("DELETE FROM member_profile WHERE memberId = :memberId")
+    suspend fun deleteProfile(memberId: String): Int
+}

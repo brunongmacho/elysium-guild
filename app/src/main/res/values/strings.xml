@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Elysium Guild</string>
+    <string name="dashboard_title">Guild Dashboard</string>
+    <string name="boss_timers">Boss Timers</string>
+    <string name="attendance">Attendance</string>
+    <string name="leaderboard">Leaderboard</string>
+    <string name="events">Events</string>
+    <string name="profile">Profile</string>
+    <string name="notifications">Notifications</string>
+    <string name="settings">Settings</string>
+    
+    <!-- Boss Timer Strings -->
+    <string name="boss_spawn_soon">Spawning Soon</string>
+    <string name="boss_ready">Ready Now</string>
+    <string name="boss_overdue">Overdue</string>
+    <string name="next_spawn">Next Spawn: %s</string>
+    <string name="last_killed">Last Killed: %s</string>
+    <string name="mark_as_killed">Mark as Killed</string>
+    
+    <!-- Attendance Strings -->
+    <string name="total_points">Total Points</string>
+    <string name="attendance_rate">Attendance Rate</string>
+    <string name="current_streak">Current Streak</string>
+    <string name="weekly_rank">Weekly Rank</string>
+    <string name="boss_kills">Boss Kills</string>
+    
+    <!-- Event Strings -->
+    <string name="world_boss">World Boss</string>
+    <string name="guild_dungeon">Guild Dungeon</string>
+    <string name="arena_battle">Arena Battle</string>
+    <string name="guild_boss">Guild Boss</string>
+    <string name="gvg">GvG</string>
+    <string name="special_event">Special Event</string>
+    
+    <!-- Error Strings -->
+    <string name="error_network">Network error. Please check your connection.</string>
+    <string name="error_server">Server error. Please try again later.</string>
+    <string name="error_unknown">An unknown error occurred.</string>
+    <string name="retry">Retry</string>
+    
+    <!-- Notification Strings -->
+    <string name="boss_spawn_notification">%s is spawning soon!</string>
+    <string name="boss_spawn_channel">Boss Spawn Notifications</string>
+    <string name="event_reminder_channel">Event Reminders</string>
+    
+    <!-- Settings Strings -->
+    <string name="notifications_enabled">Enable Notifications</string>
+    <string name="boss_spawn_alerts">Boss Spawn Alerts</string>
+    <string name="event_reminders">Event Reminders</string>
+    <string name="notification_sound">Notification Sound</string>
+    <string name="notification_vibration">Vibration</string>
+    <string name="sync_interval">Sync Interval</string>
+</resources>

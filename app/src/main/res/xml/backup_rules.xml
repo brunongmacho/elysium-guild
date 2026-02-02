@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!--
+       This file specifies which parts of your app should be backed up.
+       For more details, see the documentation at
+       https://developer.android.com/guide/topics/data/autobackup
+    -->
+    <include domain="sharedpref" path="elysium_prefs.xml"/>
+    
+    <!-- Exclude sensitive data -->
+    <exclude domain="sharedpref" path="device_specific.xml"/>
+</full-backup-content>

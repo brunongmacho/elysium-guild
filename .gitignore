@@ -1,0 +1,34 @@
+# Built artifacts
+bin
+gen
+out
+build/
+app/build/
+
+# Gradle
+.gradle/
+build.gradle.cxx
+local.properties
+gradle.properties
+.kotlin/
+
+# Android Studio / IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Project specific scripts
+diagnose.bat
+build-apk.bat
+build-apk.ps1
+new_repo_setup.sh
+SETUP_COMPLETE.md
