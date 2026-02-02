@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 5,
-  "latestVersionName": "1.0.4",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.4/app-debug.apk",
-  "releaseNotes": "- Removed the widget feature to improve app performance.\n- Improved Settings UI with consolidated system permissions.\n- Added a friendly toast notification when the app is up to date.",
+  "latestVersionCode": 6,
+  "latestVersionName": "1.0.5",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.5/app-debug.apk",
+  "releaseNotes": "- Purged all remaining widget code to fix build errors.\n- Incremented version to 1.0.5.\n- Note: Please uninstall the old version and install this one manually to sync signatures.",
   "isForceUpdate": false
 }
