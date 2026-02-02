@@ -175,32 +175,7 @@ fun ProfileScreen(
                     }
                 }
                 
-                Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
-
-                // Installation Permission Status
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Install Permissions", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            text = if (canInstallPackages) "Authorized to install APKs" else "Installation blocked (Tap to allow)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (canInstallPackages) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-                        )
-                    }
-                    IconButton(onClick = { openInstallUnknownAppsSettings(context) }) {
-                        Icon(
-                            imageVector = if (canInstallPackages) Icons.Default.CheckCircle else Icons.Default.Error,
-                            contentDescription = null,
-                            tint = if (canInstallPackages) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 
                 Text(
                     text = "Current Version: $currentVersionName",
@@ -228,7 +203,7 @@ fun ProfileScreen(
                     onClick = { openNotificationSettings(context) }
                 )
                 
-                Divider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
                 
                 PermissionStatusItem(
                     title = "Exact Alarm Timing",
@@ -238,7 +213,7 @@ fun ProfileScreen(
                     onClick = { openAlarmSettings(context) }
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
 
                 PermissionStatusItem(
                     title = "Battery Optimization",
@@ -248,7 +223,7 @@ fun ProfileScreen(
                     onClick = { requestIgnoreBatteryOptimizations(context) }
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
 
                 PermissionStatusItem(
                     title = "Network Access",
@@ -256,6 +231,17 @@ fun ProfileScreen(
                     isActive = isNetworkAvailable,
                     icon = if (isNetworkAvailable) Icons.Default.Wifi else Icons.Default.WifiOff,
                     onClick = { /* Check network settings */ }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+
+                // Installation Permission Status moved here
+                PermissionStatusItem(
+                    title = "Install APKs",
+                    statusText = if (canInstallPackages) "Authorized" else "Blocked (Tap to allow)",
+                    isActive = canInstallPackages,
+                    icon = if (canInstallPackages) Icons.Default.CheckCircle else Icons.Default.Error,
+                    onClick = { openInstallUnknownAppsSettings(context) }
                 )
             }
         }
@@ -278,7 +264,7 @@ fun ProfileScreen(
                     }
                 )
                 
-                Divider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
                 
                 NotificationToggle(
                     title = "Event Reminders",
@@ -290,7 +276,7 @@ fun ProfileScreen(
                     }
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
 
                 NotificationToggle(
                     title = "Haptic Feedback",

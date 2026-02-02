@@ -15,8 +15,8 @@ android {
         applicationId "com.elysium.guild"
         minSdk 24
         targetSdk 34
-        versionCode 4
-        versionName "1.0.3"
+        versionCode 5
+        versionName "1.0.4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -120,9 +120,6 @@ dependencies {
     // Work Manager for background tasks
     implementation 'androidx.work:work-runtime-ktx:2.10.0'
     implementation 'androidx.hilt:hilt-work:1.2.0'
-    
-    // Glance for App Widgets
-    implementation "androidx.glance:glance-appwidget:1.1.0"
     
     // Preferences
     implementation 'androidx.datastore:datastore-preferences:1.1.1'
