@@ -3,6 +3,7 @@ package com.elysium.guild.ui.screens
 import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -24,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -54,6 +56,16 @@ fun ProfileScreen(
     var areNotificationsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var canScheduleExactAlarms by remember { mutableStateOf(canScheduleExactAlarms(context)) }
     var isNetworkAvailable by remember { mutableStateOf(isNetworkAvailable(context)) }
+    var canInstallPackages by remember { mutableStateOf(canInstallPackages(context)) }
+
+    val currentVersionName = remember {
+        try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            pInfo.versionName
+        } catch (e: PackageManager.NameNotFoundException) {
+            "Unknown"
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -62,6 +74,7 @@ fun ProfileScreen(
                 areNotificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
                 canScheduleExactAlarms = canScheduleExactAlarms(context)
                 isNetworkAvailable = isNetworkAvailable(context)
+                canInstallPackages = canInstallPackages(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -79,6 +92,15 @@ fun ProfileScreen(
                         Text("A new version (${state.updateInfo.latestVersionName}) is available.")
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(state.updateInfo.releaseNotes, style = MaterialTheme.typography.bodySmall)
+                        
+                        if (!canInstallPackages) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "Note: You need to allow 'Install from Unknown Sources' in settings for the update to run.",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
                     }
                 },
                 confirmButton = {
@@ -95,7 +117,6 @@ fun ProfileScreen(
         }
         UpdateState.UpToDate -> {
             LaunchedEffect(Unit) {
-                // Could show a toast here if desired
                 viewModel.resetUpdateState()
             }
         }
@@ -151,6 +172,41 @@ fun ProfileScreen(
                         }
                     }
                 }
+                
+                Divider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
+
+                // Installation Permission Status
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "Install Permissions", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = if (canInstallPackages) "Authorized to install APKs" else "Installation blocked (Tap to allow)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (canInstallPackages) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                        )
+                    }
+                    IconButton(onClick = { openInstallUnknownAppsSettings(context) }) {
+                        Icon(
+                            imageVector = if (canInstallPackages) Icons.Default.CheckCircle else Icons.Default.Error,
+                            contentDescription = null,
+                            tint = if (canInstallPackages) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Current Version: $currentVersionName",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.align(Alignment.End)
+                )
             }
         }
 
@@ -311,6 +367,21 @@ private fun PermissionStatusItem(
                 tint = if (isActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
             )
         }
+    }
+}
+
+private fun canInstallPackages(context: Context): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        context.packageManager.canRequestPackageInstalls()
+    } else true
+}
+
+private fun openInstallUnknownAppsSettings(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+            data = Uri.parse("package:${context.packageName}")
+        }
+        context.startActivity(intent)
     }
 }
 

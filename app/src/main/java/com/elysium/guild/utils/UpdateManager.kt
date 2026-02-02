@@ -5,9 +5,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.util.Log
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.elysium.guild.BuildConfig
 import com.elysium.guild.network.UpdateApiService
@@ -32,7 +35,6 @@ class UpdateManager @Inject constructor(
 
     suspend fun checkForUpdates(): UpdateInfo? = withContext(Dispatchers.IO) {
         try {
-            // Replace 'USER/REPO/main' with your actual GitHub username, repo name, and branch
             val response = updateApiService.getUpdateManifest()
             if (response.isSuccessful) {
                 val manifest = response.body()
@@ -46,47 +48,91 @@ class UpdateManager @Inject constructor(
                     )
                 }
             }
-            null
         } catch (e: Exception) {
-            null
+            Log.e("UpdateManager", "Update check failed", e)
         }
+        null
     }
 
     fun downloadAndInstall(apkUrl: String, fileName: String) {
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val uri = Uri.parse(apkUrl)
-        
-        val request = DownloadManager.Request(uri)
-            .setTitle("Elysium Guild Update")
-            .setDescription("Downloading new version...")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
+        try {
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val uri = Uri.parse(apkUrl)
+            
+            // Use app-specific external directory to avoid permission issues
+            val destinationFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
+            if (destinationFile.exists()) {
+                destinationFile.delete()
+            }
 
-        val downloadId = downloadManager.enqueue(request)
+            val request = DownloadManager.Request(uri)
+                .setTitle("Elysium Guild Update")
+                .setDescription("Downloading v$fileName")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationUri(Uri.fromFile(destinationFile))
+                .setAllowedOverMetered(true)
+                .setAllowedOverRoaming(true)
 
-        // Register receiver for when download is complete
-        val onComplete = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
-                if (downloadId == id) {
-                    installApk(fileName)
-                    context.unregisterReceiver(this)
+            val downloadId = downloadManager.enqueue(request)
+
+            val onComplete = object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+                    if (downloadId == id) {
+                        checkStatus(downloadManager, downloadId, destinationFile)
+                        context.unregisterReceiver(this)
+                    }
                 }
             }
-        }
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
+            
+            val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(onComplete, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(onComplete, filter)
+            }
+            
+            Toast.makeText(context, "Download started...", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Start failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun installApk(fileName: String) {
-        val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName)
-        if (file.exists()) {
+    private fun checkStatus(dm: DownloadManager, id: Long, file: File) {
+        val query = DownloadManager.Query().setFilterById(id)
+        val cursor: Cursor = dm.query(query)
+        if (cursor.moveToFirst()) {
+            val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+            val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+
+            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                installApk(file)
+            } else {
+                val errorMsg = when (reason) {
+                    DownloadManager.ERROR_CANNOT_RESUME -> "Cannot resume"
+                    DownloadManager.ERROR_DEVICE_NOT_FOUND -> "Storage not found"
+                    DownloadManager.ERROR_FILE_ERROR -> "File system error"
+                    DownloadManager.ERROR_HTTP_DATA_ERROR -> "Network data error"
+                    DownloadManager.ERROR_INSUFFICIENT_SPACE -> "No storage space"
+                    DownloadManager.ERROR_TOO_MANY_REDIRECTS -> "Too many redirects"
+                    DownloadManager.ERROR_UNHANDLED_HTTP_CODE -> "HTTP Error: $reason"
+                    in 400..599 -> "Server Error: $reason (Check GitHub link)"
+                    else -> "Reason code: $reason"
+                }
+                Toast.makeText(context, "Download failed: $errorMsg", Toast.LENGTH_LONG).show()
+                Log.e("UpdateManager", "Download failed with status $status and reason $reason")
+            }
+        }
+        cursor.close()
+    }
+
+    private fun installApk(file: File) {
+        if (!file.exists()) {
+            Toast.makeText(context, "APK file not found after download", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        try {
             val contentUri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
@@ -96,9 +142,13 @@ class UpdateManager @Inject constructor(
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 setDataAndType(contentUri, "application/vnd.android.package-archive")
             }
             context.startActivity(installIntent)
+        } catch (e: Exception) {
+            Log.e("UpdateManager", "Installation failed", e)
+            Toast.makeText(context, "Installation failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 }
