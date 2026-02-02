@@ -25,6 +25,9 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Regenerate Gradle Wrapper
+        run: ./gradlew wrapper --gradle-version 8.4 # Using a stable, recent version
+
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
