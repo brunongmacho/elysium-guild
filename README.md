@@ -2,13 +2,13 @@
 
 A modern, high-performance Android application built with Jetpack Compose, designed for elite guild management. This app integrates directly with the Elysium Dashboard API to provide real-time tracking of world bosses, guild events, and member performance.
 
-## 🚀 Version 1.0.10 (Current)
-*   **Deep Theme Synchronization**: All screens (Boss Timers, Events, Leaderboard) now perfectly follow the system appearance with unified color palettes.
-*   **Light Mode Optimization**: Overhauled UI contrast for Light Mode, including a new vibrant **Azure Blue** for the Tracking stage and high-contrast status badges.
-*   **Architecture Centralization**: Unified all UI colors, labels, work names, and intent extras into a single source of truth in `Constants.kt`.
-*   **Modern Notification Engine**: Notification sounds are now managed via modern Android Notification Channels, ensuring reliable sound playback on Android 8.0+.
-*   **Performance Tuning**: Implemented localized recomposition scopes for cards to ensure silky smooth scrolling even during active timer updates.
-*   **Robust Data Mapping**: Added comprehensive `@SerializedName` support to ensure stable API communication regardless of backend naming conventions.
+## 🚀 Version 1.0.11 (Current)
+*   **Centered UI Architecture**: All page headers and subtitles are now perfectly centered across the entire app for a balanced, premium aesthetic.
+*   **GCASH Donation Integration**: A new "Guild Support" feature in Settings that instantly opens a full-height QR display for easy GCASH scanning.
+*   **Page Subtitles**: Every major screen now features descriptive subtitles (e.g., "Stay synced with guild activities") to improve UX clarity.
+*   **Deep Logic Centralization**: Page titles, subtitles, resource names, and UI behavioral logic have been moved into `Constants.kt`, making the project extremely easy to maintain and scale.
+*   **Performance Synchronization**: Boss and Event timers now share the exact same optimized logic and smooth color transitions, ensuring silky smooth scrolling.
+*   **Light Mode Refinement**: Introduced a vibrant **Azure Blue** for tracking stages in Light Mode, paired with high-contrast adaptive status badges.
 
 ## 🎯 Core Features
 
@@ -32,7 +32,7 @@ A modern, high-performance Android application built with Jetpack Compose, desig
 ### 4. Advanced Settings
 *   **Theme Engine**: Support for `Light`, `Dark`, and `System` modes with instant UI switching.
 *   **Sound Selection**: Choose your preferred alert sound with live previews.
-*   **Permission Auditor**: Real-time monitoring of required system permissions.
+*   **Guild Support**: Instant access to the guild's donation QR code for maintenance support.
 
 ## 🛠 Tech Stack
 *   **Language**: Kotlin 1.9+
@@ -71,7 +71,7 @@ The app uses a fully automated **GitHub Actions** pipeline:
 1.  Update `versionCode` and `versionName` in `app/build.gradle`.
 2.  Update `update-manifest.json` in the root folder.
 3.  Push changes: `git push origin main`.
-4.  Create a tag: `git tag v1.0.10 && git push origin v1.0.10`.
+4.  Create a tag: `git tag v1.0.11 && git push origin v1.0.11`.
 5.  GitHub will build the APK and attach it to the release automatically.
 
 ---

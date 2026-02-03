@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -22,6 +24,7 @@ import com.elysium.guild.viewmodel.LeaderboardViewModel
 import com.elysium.guild.models.LeaderboardType
 import com.elysium.guild.viewmodel.LeaderboardPeriod
 import com.elysium.guild.viewmodel.PointsFilter
+import com.elysium.guild.utils.Constants
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,15 +45,33 @@ fun LeaderboardScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            // Header
-            Text(
-                text = "Leaderboard",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Centered Header using Centralized Constants
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = Constants.TITLE_LEADERBOARD,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = Constants.SUBTITLE_LEADERBOARD,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
             
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -168,7 +189,8 @@ fun LeaderboardScreen(
 
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(bottom = 24.dp)
                         ) {
                             items(uiState.filteredLeaderboard.drop(3)) { member ->
                                 LeaderboardMemberCard(
@@ -182,7 +204,8 @@ fun LeaderboardScreen(
                     } else {
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(bottom = 24.dp)
                         ) {
                             items(uiState.filteredLeaderboard) { member ->
                                 LeaderboardMemberCard(

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.elysium.guild.ui.components.*
+import com.elysium.guild.utils.Constants
 import com.elysium.guild.viewmodel.BossTimersViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -56,7 +57,7 @@ fun BossTimersScreen(
         if (previousBossStatuses.isNotEmpty()) {
             val hasChangedToTracking = uiState.bosses.any { boss ->
                 val prevStatus = previousBossStatuses[boss.bossName]
-                (prevStatus == "ready" || prevStatus == "soon") && boss.status == "tracking"
+                (prevStatus == Constants.STATUS_READY || prevStatus == Constants.STATUS_SOON) && boss.status == Constants.STATUS_TRACKING
             }
             
             if (hasChangedToTracking) {
@@ -105,32 +106,42 @@ fun BossTimersScreen(
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                    // Centered Header using Centralized Constants
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text(
-                                text = "Boss Timers",
+                                text = Constants.TITLE_BOSS_TIMERS,
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
                             )
                             Text(
-                                text = "Track spawns & rotations",
+                                text = Constants.SUBTITLE_BOSS_TIMERS,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
                             )
                         }
                         
-                        IconButton(onClick = { viewModel.testNotification() }) {
-                            Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        // Keep debug button reachable but out of centered titles
+                        IconButton(
+                            onClick = { viewModel.testNotification() },
+                            modifier = Modifier.align(Alignment.CenterEnd).size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport, 
+                                contentDescription = null, 
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                     
@@ -173,14 +184,14 @@ fun BossTimersScreen(
                     val filterCounts = remember(uiState.bosses) {
                         mapOf(
                             "All" to uiState.bosses.size,
-                            "Ready" to uiState.bosses.count { it.status == "ready" || it.status == "overdue" || (it.timeRemaining ?: 1) <= 0 },
+                            "Ready" to uiState.bosses.count { it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0 },
                             "Soon" to uiState.bosses.count { 
-                                val isReady = it.status == "ready" || it.status == "overdue" || (it.timeRemaining ?: 1) <= 0
-                                !isReady && (it.status == "soon" || (it.timeRemaining != null && it.timeRemaining <= 30 * 60 * 1000L))
+                                val isReady = it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0
+                                !isReady && (it.status == Constants.STATUS_SOON || (it.timeRemaining != null && it.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
                             },
                             "Tracking" to uiState.bosses.count {
-                                 val isReady = it.status == "ready" || it.status == "overdue" || (it.timeRemaining ?: 1) <= 0
-                                 val isSoon = !isReady && (it.status == "soon" || (it.timeRemaining != null && it.timeRemaining <= 30 * 60 * 1000L))
+                                 val isReady = it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0
+                                 val isSoon = !isReady && (it.status == Constants.STATUS_SOON || (it.timeRemaining != null && it.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
                                  !isReady && !isSoon
                             }
                         )

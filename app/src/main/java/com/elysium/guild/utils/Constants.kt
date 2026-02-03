@@ -73,6 +73,27 @@ object Constants {
     const val STATUS_SOON = "soon"
     const val STATUS_TRACKING = "tracking"
     const val STATUS_OVERDUE = "overdue"
+
+    // Donation Strings
+    const val DONATION_TITLE = "Support Elysium Guild"
+    const val DONATION_DESC = "Scan the GCASH QR code to support our guild's server and development costs. Any amount is greatly appreciated!"
+
+    // Page Titles & Subtitles
+    const val TITLE_BOSS_TIMERS = "Boss Timers"
+    const val SUBTITLE_BOSS_TIMERS = "Track spawns & rotations"
+    
+    const val TITLE_GUILD_EVENTS = "Guild Events"
+    const val SUBTITLE_GUILD_EVENTS = "Stay synced with guild activities"
+    
+    const val TITLE_LEADERBOARD = "Leaderboard"
+    const val SUBTITLE_LEADERBOARD = "Track the guild's top performers"
+    
+    const val TITLE_SETTINGS = "Settings"
+    const val SUBTITLE_SETTINGS = "Manage your preferences"
+
+    // Resource Names
+    const val RES_QR_DONATION = "qr"
+    const val RES_DEFAULT_SOUND = "terran_launch"
 }
 
 object UIUtils {

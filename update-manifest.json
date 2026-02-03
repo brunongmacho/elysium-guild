@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 11,
-  "latestVersionName": "1.0.10",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.10/app-debug.apk",
-  "releaseNotes": "- Fixed theme synchronization issues.\n- Improved UI contrast for Light Mode.\n- Optimized timer performance.\n- Refactored project structure for better maintainability.",
+  "latestVersionCode": 12,
+  "latestVersionName": "1.0.11",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.11/app-debug.apk",
+  "releaseNotes": "- Centered all page headers and subtitles for a consistent UI.\n- Integrated GCASH Donation feature directly into Settings with full-height QR display.\n- Fully centralized all project constants (titles, colors, logic) in Constants.kt.\n- Synced Boss and Event timer behaviors and Light/Dark mode transitions.\n- Optimized recomposition for better scrolling performance.",
   "isForceUpdate": false
 }
