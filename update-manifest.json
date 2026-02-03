@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 10,
-  "latestVersionName": "1.0.9",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.9/app-debug.apk",
-  "releaseNotes": "- Fixed build error with 'silent' parameter.\n- Updated version to 1.0.9 for auto-update testing.",
+  "latestVersionCode": 11,
+  "latestVersionName": "1.0.10",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.10/app-debug.apk",
+  "releaseNotes": "- Fixed theme synchronization issues.\n- Improved UI contrast for Light Mode.\n- Optimized timer performance.\n- Refactored project structure for better maintainability.",
   "isForceUpdate": false
 }

@@ -8,6 +8,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,11 +27,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.elysium.guild.models.*
 import com.elysium.guild.utils.Constants
+import com.elysium.guild.utils.UIUtils
 import kotlinx.datetime.Instant
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -38,13 +39,13 @@ import java.util.Locale
 @Composable
 fun BossTimerCard(
     boss: BossTimer,
-    currentTime: Instant
+    currentTime: State<Instant>
 ) {
     val context = LocalContext.current
-    val isSpawned = boss.status == "ready" || boss.status == "overdue" || (boss.timeRemaining ?: 1) <= 0
+    val isDark = isSystemInDarkTheme()
     
-    val targetColor = remember(boss.nextSpawnTime, currentTime) {
-        getBossStatusColor(boss, currentTime)
+    val targetColor = remember(boss.status, boss.timeRemaining, isDark) {
+        UIUtils.getStatusColor(boss.status, boss.timeRemaining, isDark)
     }
     
     val animatedColor by animateColorAsState(
@@ -52,10 +53,6 @@ fun BossTimerCard(
         animationSpec = tween(durationMillis = 500),
         label = "CardColorAnimation"
     )
-    
-    val countdown = remember(boss.nextSpawnTime, currentTime) {
-        boss.nextSpawnTime?.let { calculateBossCountdown(it, currentTime) } ?: ""
-    }
 
     Surface(
         modifier = Modifier
@@ -65,39 +62,37 @@ fun BossTimerCard(
                 width = 1.dp,
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.2f),
-                        Color.White.copy(alpha = 0.05f)
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.2f else 0.15f),
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.02f)
                     )
                 ),
                 shape = RoundedCornerShape(24.dp)
             ),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
-        tonalElevation = 4.dp
+        color = if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.4f) 
+                else MaterialTheme.colorScheme.surface,
+        tonalElevation = if (isDark) 4.dp else 2.dp,
+        shadowElevation = if (isDark) 0.dp else 3.dp
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
-            // Seamless background gradient that covers the entire card area
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .background(
                         brush = Brush.horizontalGradient(
                             colors = listOf(
-                                animatedColor.copy(alpha = 0.12f),
+                                animatedColor.copy(alpha = if (isDark) 0.12f else 0.1f),
                                 Color.Transparent
                             )
                         )
                     )
             )
 
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Boss Image with Status Ring
                     BossAvatar(boss = boss, statusColor = animatedColor)
 
                     Spacer(modifier = Modifier.width(16.dp))
@@ -124,11 +119,8 @@ fun BossTimerCard(
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                // Share Button (Call to Arms)
                                 IconButton(
-                                    onClick = { 
-                                        shareBossStatus(context, boss, countdown)
-                                    },
+                                    onClick = { shareBossStatus(context, boss, currentTime.value) },
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
@@ -141,115 +133,170 @@ fun BossTimerCard(
 
                                 Spacer(modifier = Modifier.width(4.dp))
 
-                                if (!isSpawned && countdown.isNotEmpty()) {
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                                    ) {
-                                        Text(
-                                            text = countdown,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                } else if (isSpawned) {
-                                    Surface(
-                                        color = Color(0xFF10B981).copy(alpha = 0.8f),
-                                        shape = RoundedCornerShape(12.dp),
-                                        shadowElevation = 4.dp
-                                    ) {
-                                        Text(
-                                            text = "READY",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Black,
-                                            color = Color.White,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                }
+                                StatusBadge(boss = boss, currentTime = currentTime, statusColor = animatedColor)
                             }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         if (boss.rotation?.isRotating == true) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
-                                    .padding(8.dp)
-                            ) {
-                                boss.rotation.currentGuild?.let { current ->
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(modifier = Modifier.size(6.dp).background(if (boss.rotation.isOurTurn == true) MaterialTheme.colorScheme.primary else Color.Gray, CircleShape))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "Current: $current",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = if (boss.rotation.isOurTurn == true) 
-                                                MaterialTheme.colorScheme.primary 
-                                            else 
-                                                MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (boss.rotation.isOurTurn == true) 
-                                                FontWeight.Bold 
-                                            else 
-                                                FontWeight.Medium
-                                        )
-                                    }
-                                }
-                            }
+                            RotationStatus(boss.rotation)
                         }
 
-                        boss.nextSpawnTime?.let { spawnTime ->
-                            val formattedTime = remember(spawnTime, boss.status, boss.type) {
-                                formatSpawnTime(spawnTime, boss.status, boss.type)
-                            }
-                            Text(
-                                text = formattedTime,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                                lineHeight = 14.sp,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
+                        SpawnTimeText(boss)
                     }
                 }
 
-                // Visual Progress Bar for "Soon" bosses
-                if (!isSpawned && boss.timeRemaining != null) {
-                    val progress = remember(boss.timeRemaining) {
-                        val threshold = Constants.SPAWNING_SOON_THRESHOLD_MINUTES * 60 * 1000L
-                        if (boss.timeRemaining <= threshold) {
-                            1f - (boss.timeRemaining.toFloat() / threshold.toFloat())
-                        } else 0f
-                    }
-                    
-                    if (progress > 0f) {
-                        val animatedProgress by animateFloatAsState(
-                            targetValue = progress.coerceIn(0f, 1f),
-                            animationSpec = tween(durationMillis = 1000),
-                            label = "ProgressBarAnimation"
-                        )
-                        
-                        LinearProgressIndicator(
-                            progress = { animatedProgress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(6.dp)
-                                .padding(horizontal = 16.dp)
-                                .clip(CircleShape),
-                            color = animatedColor,
-                            trackColor = animatedColor.copy(alpha = 0.1f)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                }
+                DynamicProgressBar(boss, currentTime, animatedColor)
             }
         }
+    }
+}
+
+@Composable
+private fun StatusBadge(
+    boss: BossTimer,
+    currentTime: State<Instant>,
+    statusColor: Color
+) {
+    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || (boss.timeRemaining ?: 1) <= 0
+    val isSoon = !isReady && (boss.status == Constants.STATUS_SOON || (boss.timeRemaining != null && boss.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
+    val isDark = isSystemInDarkTheme()
+
+    if (isReady) {
+        Surface(
+            color = Constants.COLOR_READY.copy(alpha = if (isDark) 0.8f else 1f),
+            shape = RoundedCornerShape(12.dp),
+            shadowElevation = 4.dp
+        ) {
+            Text(
+                text = Constants.LABEL_READY,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
+    } else {
+        val countdownText = remember(boss.nextSpawnTime, currentTime.value) {
+            boss.nextSpawnTime?.let { calculateBossCountdown(it, currentTime.value) } ?: ""
+        }
+        
+        if (countdownText.isNotEmpty()) {
+            Surface(
+                color = statusColor.copy(alpha = if (isDark) 0.4f else 0.15f),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp, 
+                    color = statusColor.copy(alpha = if (isDark) 0.3f else 0.4f)
+                )
+            ) {
+                Text(
+                    text = countdownText,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = if (!isDark) statusColor.copy(alpha = 0.9f) 
+                            else statusColor,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RotationStatus(rotation: RotationInfo) {
+    val isDark = isSystemInDarkTheme()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.03f), 
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(8.dp)
+    ) {
+        rotation.currentGuild?.let { current ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .background(
+                            if (rotation.isOurTurn == true) MaterialTheme.colorScheme.primary else Color.Gray,
+                            CircleShape
+                        )
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Current: $current",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (rotation.isOurTurn == true)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (rotation.isOurTurn == true)
+                        FontWeight.Bold
+                    else
+                        FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpawnTimeText(boss: BossTimer) {
+    boss.nextSpawnTime?.let { spawnTime ->
+        val formattedTime = remember(spawnTime, boss.status, boss.type) {
+            formatSpawnTime(spawnTime, boss.status, boss.type)
+        }
+        Text(
+            text = formattedTime,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            lineHeight = 14.sp,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun DynamicProgressBar(
+    boss: BossTimer,
+    currentTime: State<Instant>,
+    animatedColor: Color
+) {
+    val threshold = Constants.SPAWNING_SOON_THRESHOLD_MS
+    val timeRemaining = boss.timeRemaining ?: return
+    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || timeRemaining <= 0
+    val isDark = isSystemInDarkTheme()
+    
+    if (!isReady && timeRemaining <= threshold) {
+        val progress = remember(timeRemaining, currentTime.value) {
+            val currentDiff = boss.nextSpawnTime?.let { 
+                try { (Instant.parse(it) - currentTime.value).inWholeMilliseconds } catch(e: Exception) { timeRemaining }
+            } ?: timeRemaining
+            (1f - (currentDiff.toFloat() / threshold.toFloat())).coerceIn(0f, 1f)
+        }
+
+        val animatedProgress by animateFloatAsState(
+            targetValue = progress,
+            animationSpec = tween(durationMillis = 1000),
+            label = "ProgressBarAnimation"
+        )
+
+        LinearProgressIndicator(
+            progress = { animatedProgress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .padding(horizontal = 16.dp)
+                .clip(CircleShape),
+            color = animatedColor,
+            trackColor = animatedColor.copy(alpha = if (isDark) 0.1f else 0.05f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -263,7 +310,7 @@ fun BossAvatar(
     val avatarColor = remember(boss.bossName) {
         val hash = boss.bossName.hashCode()
         val colors = listOf(
-            Color(0xFF6366F1), Color(0xFFEC4899), Color(0xFFF59E0B), 
+            Color(0xFF6366F1), Color(0xFFEC4899), Color(0xFFF59E0B),
             Color(0xFF10B981), Color(0xFF8B5CF6), Color(0xFF06B6D4)
         )
         colors[Math.abs(hash) % colors.size]
@@ -336,64 +383,8 @@ fun BossInitialAvatar(name: String, backgroundColor: Color, size: Int) {
 }
 
 @Composable
-fun BossCarouselCard(
-    boss: BossTimer,
-    currentTime: Instant
-) {
-    val isSpawned = boss.status == "ready" || boss.status == "overdue" || (boss.timeRemaining ?: 1) <= 0
-    val targetColor = getBossStatusColor(boss, currentTime)
-    val countdown = boss.nextSpawnTime?.let { calculateBossCountdown(it, currentTime) } ?: ""
-
-    Surface(
-        modifier = Modifier
-            .width(260.dp)
-            .height(100.dp)
-            .padding(end = 12.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = targetColor.copy(alpha = 0.15f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, targetColor.copy(alpha = 0.3f)),
-        shadowElevation = 8.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BossAvatar(boss = boss, statusColor = targetColor, size = 48)
-            
-            Spacer(modifier = Modifier.width(12.dp))
-            
-            Column {
-                Text(
-                    text = boss.bossName,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                
-                if (isSpawned) {
-                    Text(
-                        text = "READY",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFF10B981)
-                    )
-                } else {
-                    Text(
-                        text = countdown,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        color = targetColor
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun BossTimerShimmerItem() {
+    val isDark = isSystemInDarkTheme()
     val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.2f,
@@ -411,23 +402,26 @@ fun BossTimerShimmerItem() {
             .height(100.dp)
             .padding(vertical = 6.dp),
         shape = RoundedCornerShape(24.dp),
-        color = Color.White.copy(alpha = alpha),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) alpha else alpha * 0.5f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(60.dp).background(Color.White.copy(alpha = 0.1f), CircleShape))
+            Box(modifier = Modifier.size(60.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), CircleShape))
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Box(modifier = Modifier.size(120.dp, 20.dp).background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)))
+                Box(modifier = Modifier.size(120.dp, 20.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(4.dp)))
                 Spacer(modifier = Modifier.height(8.dp))
-                Box(modifier = Modifier.size(80.dp, 12.dp).background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)))
+                Box(modifier = Modifier.size(80.dp, 12.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(4.dp)))
             }
         }
     }
 }
 
-private fun shareBossStatus(context: Context, boss: BossTimer, countdown: String) {
-    val message = if (boss.status == "ready" || boss.status == "overdue") {
+private fun shareBossStatus(context: Context, boss: BossTimer, now: Instant) {
+    val countdown = boss.nextSpawnTime?.let { calculateBossCountdown(it, now) } ?: ""
+    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE
+
+    val message = if (isReady) {
         "[ELYSIUM] BOSS READY: ${boss.bossName.uppercase()} is spawning now! Get to the relay! ⚔️"
     } else {
         "[ELYSIUM] BOSS REMINDER: ${boss.bossName.uppercase()} spawning in $countdown! Prepare for the kill! ⚔️"
@@ -438,18 +432,6 @@ private fun shareBossStatus(context: Context, boss: BossTimer, countdown: String
     clipboard.setPrimaryClip(clip)
     
     Toast.makeText(context, "Call to Arms copied to clipboard!", Toast.LENGTH_SHORT).show()
-}
-
-private fun getBossStatusColor(boss: BossTimer, now: Instant): Color {
-    val eventInstant = boss.nextSpawnTime?.let { try { Instant.parse(it) } catch (e: Exception) { null } } ?: return Color(0xFF6B7280)
-    val duration = eventInstant - now
-    val minutesRemaining = duration.inWholeMinutes
-
-    return when {
-        duration.isNegative() -> Color(0xFF10B981) // Green
-        minutesRemaining <= 30 -> Color(0xFFF59E0B) // Yellow
-        else -> Color(0xFFEF4444) // Red
-    }
 }
 
 private fun formatSpawnTime(spawnTime: String, status: String, type: String): String {

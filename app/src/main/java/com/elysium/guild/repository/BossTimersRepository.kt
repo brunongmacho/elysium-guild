@@ -1,5 +1,6 @@
 package com.elysium.guild.repository
 
+import android.util.Log
 import com.elysium.guild.models.*
 import com.elysium.guild.network.ElysiumApiService
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,18 +17,23 @@ class BossTimersRepository @Inject constructor(
     val bossDataChanged: SharedFlow<Unit> = _bossDataChanged.asSharedFlow()
 
     suspend fun getBossTimers(): List<BossTimer> {
-        return try {
+        try {
             val response = apiService.getBossTimers()
-            if (response.isSuccessful && response.body()?.success == true) {
-                val bosses = response.body()?.bosses ?: emptyList()
-                // Notify that we have fresh data, which might imply leaderboard changes
-                _bossDataChanged.tryEmit(Unit)
-                bosses
-            } else {
-                emptyList()
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.success == true) {
+                    val bosses = body.bosses
+                    _bossDataChanged.tryEmit(Unit)
+                    return bosses ?: emptyList()
+                }
             }
+            // Throw exception to be caught by ViewModel and displayed in UI
+            val errorMsg = "API Error: ${response.code()} ${response.message()}"
+            Log.e("BossTimersRepository", errorMsg)
+            throw Exception(errorMsg)
         } catch (e: Exception) {
-            emptyList()
+            Log.e("BossTimersRepository", "Failed to fetch boss timers", e)
+            throw e
         }
     }
 }

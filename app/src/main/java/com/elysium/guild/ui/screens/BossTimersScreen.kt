@@ -40,7 +40,7 @@ fun BossTimersScreen(
     viewModel: BossTimersViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val currentTime by viewModel.currentTime.collectAsState()
+    val currentTime = viewModel.currentTime.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -80,7 +80,7 @@ fun BossTimersScreen(
     
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFF0B0B1A) // Darker base color to ensure no gaps
+        color = MaterialTheme.colorScheme.background
     ) {
         DynamicElysiumBackground {
             PullToRefreshBox(
@@ -116,21 +116,21 @@ fun BossTimersScreen(
                                 text = "Boss Timers",
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Black,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "Track spawns & rotations",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.6f),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                         
                         IconButton(onClick = { viewModel.testNotification() }) {
-                            Icon(Icons.Default.BugReport, contentDescription = null, tint = Color.White.copy(alpha = 0.6f))
+                            Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         }
                     }
                     
@@ -144,24 +144,24 @@ fun BossTimersScreen(
                             coroutineScope.launch { listState.animateScrollToItem(0) }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search bosses...", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.4f)) },
+                        placeholder = { Text("Search bosses...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 14.sp) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
                         trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
                             {
                                 IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.4f))
+                                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                                 }
                             }
                         } else null,
                         shape = RoundedCornerShape(16.dp),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
                             focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                         ),
                         textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
                     )
@@ -268,7 +268,7 @@ fun FilterChipsWithCounts(
                             color = if (selectedFilter == filter) 
                                 MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f) 
                             else 
-                                Color.White.copy(alpha = 0.1f),
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
@@ -286,13 +286,13 @@ fun FilterChipsWithCounts(
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    containerColor = Color.White.copy(alpha = 0.05f),
-                    labelColor = Color.White.copy(alpha = 0.7f)
+                    containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                    labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
                     selected = selectedFilter == filter,
-                    borderColor = Color.White.copy(alpha = 0.1f),
+                    borderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                     selectedBorderColor = MaterialTheme.colorScheme.primary
                 )
             )
@@ -311,18 +311,18 @@ fun EmptyBossState(query: String) {
             imageVector = Icons.Default.SearchOff,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
-            tint = Color.White.copy(alpha = 0.2f)
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = if (query.isEmpty()) "No bosses tracked" else "No results for \"$query\"",
             style = MaterialTheme.typography.titleMedium,
-            color = Color.White.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
         Text(
             text = "Try adjusting your filters or search query",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.4f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
         )
     }
 }

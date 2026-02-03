@@ -1,5 +1,6 @@
 package com.elysium.guild.repository
 
+import android.util.Log
 import com.elysium.guild.models.*
 import com.elysium.guild.network.ElysiumApiService
 import com.google.gson.Gson
@@ -14,40 +15,46 @@ class LeaderboardRepository @Inject constructor(
     private val gson = Gson()
     
     suspend fun getAttendanceLeaderboard(period: String? = null, subPeriod: String? = null): List<AttendanceLeaderboardEntry> {
-        return try {
+        try {
             val response = apiService.getLeaderboard("attendance", period, subPeriod, 100)
-            if (response.isSuccessful && response.body()?.success == true) {
-                val dataElement = response.body()?.data
-                if (dataElement != null) {
-                    val typeToken = object : TypeToken<List<AttendanceLeaderboardEntry>>() {}.type
-                    gson.fromJson(dataElement, typeToken)
-                } else {
-                    emptyList()
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.success == true) {
+                    val dataElement = body.data
+                    if (dataElement != null) {
+                        val typeToken = object : TypeToken<List<AttendanceLeaderboardEntry>>() {}.type
+                        return gson.fromJson(dataElement, typeToken)
+                    }
                 }
-            } else {
-                emptyList()
             }
+            val errorMsg = "Attendance API Error: ${response.code()} ${response.message()}"
+            Log.e("LeaderboardRepository", errorMsg)
+            throw Exception(errorMsg)
         } catch (e: Exception) {
-            emptyList()
+            Log.e("LeaderboardRepository", "Attendance load failed", e)
+            throw e
         }
     }
     
     suspend fun getPointsLeaderboard(): List<PointsLeaderboardEntry> {
-        return try {
+        try {
             val response = apiService.getLeaderboard("points", null, null, 100)
-            if (response.isSuccessful && response.body()?.success == true) {
-                val dataElement = response.body()?.data
-                if (dataElement != null) {
-                    val typeToken = object : TypeToken<List<PointsLeaderboardEntry>>() {}.type
-                    gson.fromJson(dataElement, typeToken)
-                } else {
-                    emptyList()
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.success == true) {
+                    val dataElement = body.data
+                    if (dataElement != null) {
+                        val typeToken = object : TypeToken<List<PointsLeaderboardEntry>>() {}.type
+                        return gson.fromJson(dataElement, typeToken)
+                    }
                 }
-            } else {
-                emptyList()
             }
+            val errorMsg = "Points API Error: ${response.code()} ${response.message()}"
+            Log.e("LeaderboardRepository", errorMsg)
+            throw Exception(errorMsg)
         } catch (e: Exception) {
-            emptyList()
+            Log.e("LeaderboardRepository", "Points load failed", e)
+            throw e
         }
     }
 }

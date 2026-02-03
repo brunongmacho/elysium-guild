@@ -1,7 +1,10 @@
 package com.elysium.guild.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -12,26 +15,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elysium.guild.models.*
 import com.elysium.guild.ui.theme.*
+import com.elysium.guild.utils.Constants
+import com.elysium.guild.utils.UIUtils
 import kotlinx.datetime.*
 import java.util.Locale
 
 @Composable
 fun EventCard(
     event: GuildEvent,
-    currentTime: Instant,
+    currentTime: State<Instant>,
     onReminderClick: (GuildEvent) -> Unit
 ) {
-    val countdown = remember(event.startTime, currentTime) {
-        calculateCountdown(event.startTime, currentTime)
-    }
+    val isDark = isSystemInDarkTheme()
     
-    val statusColor = remember(event.startTime, currentTime) {
-        getEventStatusColor(event.startTime, currentTime)
+    val targetColor = remember(event.startTime, currentTime.value, isDark) {
+        val diffMs = try { (Instant.parse(event.startTime) - currentTime.value).inWholeMilliseconds } catch(e: Exception) { null }
+        UIUtils.getStatusColor(null, diffMs, isDark)
     }
+
+    val animatedColor by animateColorAsState(
+        targetValue = targetColor,
+        animationSpec = tween(durationMillis = 500),
+        label = "EventColorAnimation"
+    )
 
     Surface(
         modifier = Modifier
@@ -41,28 +52,32 @@ fun EventCard(
                 width = 1.dp,
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.2f),
-                        Color.White.copy(alpha = 0.05f)
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.2f else 0.15f),
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.02f)
                     )
                 ),
                 shape = RoundedCornerShape(24.dp)
             ),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
-        tonalElevation = 4.dp
+        color = if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.4f) 
+                else MaterialTheme.colorScheme.surface,
+        tonalElevation = if (isDark) 4.dp else 2.dp,
+        shadowElevation = if (isDark) 0.dp else 3.dp
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            statusColor.copy(alpha = 0.15f),
-                            Color.Transparent
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                animatedColor.copy(alpha = if (isDark) 0.12f else 0.1f),
+                                Color.Transparent
+                            )
                         )
                     )
-                )
-        ) {
+            )
+
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -72,7 +87,6 @@ fun EventCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Event Icon and Name
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -80,7 +94,7 @@ fun EventCard(
                         Surface(
                             modifier = Modifier.size(40.dp),
                             shape = RoundedCornerShape(12.dp),
-                            color = statusColor.copy(alpha = 0.2f)
+                            color = animatedColor.copy(alpha = if (isDark) 0.2f else 0.1f)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
@@ -109,7 +123,6 @@ fun EventCard(
                     }
                 }
                 
-                // Event Description
                 Text(
                     text = event.description,
                     style = MaterialTheme.typography.bodySmall,
@@ -117,20 +130,29 @@ fun EventCard(
                     lineHeight = MaterialTheme.typography.bodySmall.lineHeight
                 )
 
-                // Countdown
+                // Shared Status Badge Behavior
+                val countdown = remember(event.startTime, currentTime.value) {
+                    calculateCountdown(event.startTime, currentTime.value)
+                }
+
                 if (countdown.isNotEmpty()) {
                     Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                        color = animatedColor.copy(alpha = if (isDark) 0.4f else 0.15f),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.align(Alignment.End),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp, 
+                            color = animatedColor.copy(alpha = if (isDark) 0.3f else 0.4f)
+                        )
                     ) {
                         Text(
                             text = countdown,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            fontFamily = FontFamily.Monospace,
+                            color = if (!isDark) animatedColor.copy(alpha = 0.9f) 
+                                    else animatedColor
                         )
                     }
                 }
@@ -190,22 +212,6 @@ fun ErrorMessage(
         ) {
             Text("Retry")
         }
-    }
-}
-
-private fun getEventStatusColor(startTime: String, now: Instant): Color {
-    return try {
-        val eventInstant = Instant.parse(startTime)
-        val duration = eventInstant - now
-        val minutesRemaining = duration.inWholeMinutes
-
-        when {
-            duration.isNegative() -> Color(0xFF10B981) // Green
-            minutesRemaining <= 30 -> Color(0xFFF59E0B) // Yellow
-            else -> Color(0xFFEF4444) // Red
-        }
-    } catch (e: Exception) {
-        Color(0xFFEF4444)
     }
 }
 

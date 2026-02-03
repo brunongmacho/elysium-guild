@@ -10,29 +10,29 @@ import com.google.gson.JsonElement
 // Boss Timer Models
 @Immutable
 data class BossTimer(
-    val bossName: String,
-    val bossPoints: Int,
+    @SerializedName("boss_name", alternate = ["name", "bossName"]) val bossName: String,
+    @SerializedName("boss_points", alternate = ["points", "bossPoints"]) val bossPoints: Int,
     val type: String, // "timer" or "schedule"
-    val killedBy: String? = null,
-    val lastKillTime: String? = null, // ISO datetime
-    val nextSpawnTime: String? = null, // ISO datetime
-    val interval: Int? = null, // in hours for timer-based bosses
-    val timeRemaining: Long? = null, // milliseconds until spawn
-    val status: String, // "ready", "soon", "overdue"
-    val killCount: Int = 0,
-    val isPredicted: Boolean = false,
+    @SerializedName("killed_by", alternate = ["killedBy"]) val killedBy: String? = null,
+    @SerializedName("last_kill_time", alternate = ["lastKillTime", "last_killed"]) val lastKillTime: String? = null,
+    @SerializedName("next_spawn_time", alternate = ["nextSpawnTime", "next_spawn"]) val nextSpawnTime: String? = null,
+    val interval: Int? = null,
+    @SerializedName("time_remaining", alternate = ["timeRemaining"]) val timeRemaining: Long? = null,
+    val status: String,
+    @SerializedName("kill_count", alternate = ["killCount"]) val killCount: Int = 0,
+    @SerializedName("is_predicted", alternate = ["isPredicted"]) val isPredicted: Boolean = false,
     val rotation: RotationInfo? = null,
-    val imageUrl: String? = null
+    @SerializedName("image_url", alternate = ["imageUrl"]) val imageUrl: String? = null
 )
 
 @Immutable
 data class RotationInfo(
-    val isRotating: Boolean,
-    val currentIndex: Int? = null,
-    val currentGuild: String? = null,
-    val isOurTurn: Boolean? = null,
+    @SerializedName("is_rotating", alternate = ["isRotating"]) val isRotating: Boolean,
+    @SerializedName("current_index", alternate = ["currentIndex"]) val currentIndex: Int? = null,
+    @SerializedName("current_guild", alternate = ["currentGuild"]) val currentGuild: String? = null,
+    @SerializedName("is_our_turn", alternate = ["isOurTurn"]) val isOurTurn: Boolean? = null,
     val guilds: List<String>? = null,
-    val nextGuild: String? = null
+    @SerializedName("next_guild", alternate = ["nextGuild"]) val nextGuild: String? = null
 )
 
 // Leaderboard Models
@@ -43,28 +43,26 @@ interface LeaderboardEntry {
     val memberId: String
 }
 
-// Leaderboard Models - Attendance Type
 @Immutable
 data class AttendanceLeaderboardEntry(
     override val rank: Int,
-    override val username: String,
-    override val memberId: String,
-    val totalKills: Int,
-    val pointsEarned: Int,
-    val attendanceRate: Int, // Integer in API
-    val currentStreak: Int
+    @SerializedName("username", alternate = ["name", "memberName"]) override val username: String,
+    @SerializedName("member_id", alternate = ["memberId", "id"]) override val memberId: String,
+    @SerializedName("total_kills", alternate = ["totalKills", "kills"]) val totalKills: Int,
+    @SerializedName("points_earned", alternate = ["pointsEarned", "earned"]) val pointsEarned: Int,
+    @SerializedName("attendance_rate", alternate = ["attendanceRate", "rate"]) val attendanceRate: Int,
+    @SerializedName("current_streak", alternate = ["currentStreak", "streak"]) val currentStreak: Int
 ) : LeaderboardEntry
 
-// Leaderboard Models - Points Type  
 @Immutable
 data class PointsLeaderboardEntry(
     override val rank: Int,
-    override val username: String,
-    override val memberId: String,
-    val pointsAvailable: Int,
-    val pointsEarned: Int,
-    val pointsSpent: Int,
-    val consumptionRate: Int // Integer in API
+    @SerializedName("username", alternate = ["name", "memberName"]) override val username: String,
+    @SerializedName("member_id", alternate = ["memberId", "id"]) override val memberId: String,
+    @SerializedName("points_available", alternate = ["pointsAvailable", "available"]) val pointsAvailable: Int,
+    @SerializedName("points_earned", alternate = ["pointsEarned", "earned"]) val pointsEarned: Int,
+    @SerializedName("points_spent", alternate = ["pointsSpent", "spent"]) val pointsSpent: Int,
+    @SerializedName("consumption_rate", alternate = ["consumptionRate", "rate"]) val consumptionRate: Int
 ) : LeaderboardEntry
 
 enum class LeaderboardType {
@@ -72,16 +70,15 @@ enum class LeaderboardType {
     POINTS
 }
 
-// Event Models
 @Immutable
 data class GuildEvent(
     val id: String,
     val name: String,
     val type: EventType,
-    val startTime: String, // ISO datetime
-    val endTime: String?, // ISO datetime
+    @SerializedName("start_time", alternate = ["startTime"]) val startTime: String,
+    @SerializedName("end_time", alternate = ["endTime"]) val endTime: String?,
     val description: String,
-    val reminderSet: Boolean
+    @SerializedName("reminder_set", alternate = ["reminderSet"]) val reminderSet: Boolean
 )
 
 enum class EventType {
@@ -93,20 +90,19 @@ enum class EventType {
     SPECIAL_EVENT
 }
 
-// Member Profile Models
 @Immutable
 data class MemberProfile(
-    val memberId: String,
+    @SerializedName("member_id", alternate = ["memberId", "id"]) val memberId: String,
     val name: String,
-    val avatarUrl: String?,
+    @SerializedName("avatar_url", alternate = ["avatarUrl"]) val avatarUrl: String?,
     val rank: String,
-    val totalPoints: Int,
-    val availablePoints: Int,
-    val attendanceRate: Double,
-    val currentStreak: Int,
-    val weeklyRank: Int,
+    @SerializedName("total_points", alternate = ["totalPoints"]) val totalPoints: Int,
+    @SerializedName("available_points", alternate = ["availablePoints"]) val availablePoints: Int,
+    @SerializedName("attendance_rate", alternate = ["attendanceRate"]) val attendanceRate: Double,
+    @SerializedName("current_streak", alternate = ["currentStreak"]) val currentStreak: Int,
+    @SerializedName("weekly_rank", alternate = ["weeklyRank"]) val weeklyRank: Int,
     val role: String,
-    val recentActivities: List<ActivityEntry>
+    @SerializedName("recent_activities", alternate = ["recentActivities"]) val recentActivities: List<ActivityEntry>
 )
 
 @Immutable
@@ -114,7 +110,7 @@ data class ActivityEntry(
     val id: String,
     val type: ActivityType,
     val description: String,
-    val timestamp: String, // ISO datetime
+    val timestamp: String,
     val points: Int?
 )
 
@@ -126,37 +122,37 @@ enum class ActivityType {
     POINTS_SPENT
 }
 
-// API Response Models
 data class ApiResponse<T>(
-    val success: Boolean,
+    val success: Boolean?,
     val data: T?,
     val message: String?,
     val error: String?
 )
 
 data class BossTimerResponse(
-    val success: Boolean,
-    val count: Int,
-    val bosses: List<BossTimer>,
-    val timestamp: String
+    val success: Boolean?,
+    val count: Int?,
+    val bosses: List<BossTimer>?,
+    val data: List<BossTimer>?,
+    val timestamp: String?
 )
 
 data class LeaderboardResponse(
-    val success: Boolean,
-    val type: String, // "attendance" or "points"
-    val period: String,
-    val count: Int,
-    val total: Int,
-    val data: JsonElement, // Different structure for attendance vs points
-    val timestamp: String
+    val success: Boolean?,
+    val type: String?,
+    val period: String?,
+    val count: Int?,
+    val total: Int?,
+    val data: JsonElement?,
+    val timestamp: String?
 )
 
 data class EventsResponse(
-    val events: List<GuildEvent>
+    val events: List<GuildEvent>?
 )
 
 data class MemberProfileResponse(
-    val profile: MemberProfile
+    val profile: MemberProfile?
 )
 
 // Database Models
@@ -164,7 +160,7 @@ data class MemberProfileResponse(
 data class BossTimerEntity(
     @PrimaryKey val id: String,
     val name: String,
-    val alias: String, // JSON string
+    val alias: String,
     val points: Int,
     val nextSpawn: String?,
     val lastKilled: String?,
@@ -184,7 +180,7 @@ data class LeaderboardEntryEntity(
     val currentStreak: Int,
     val weeklyRank: Int,
     val role: String,
-    val type: String, // attendance or points
+    val type: String,
     val lastUpdated: String
 )
 

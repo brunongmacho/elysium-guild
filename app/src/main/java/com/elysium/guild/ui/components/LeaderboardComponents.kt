@@ -2,6 +2,7 @@ package com.elysium.guild.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.elysium.guild.models.*
+import com.elysium.guild.utils.Constants
 import com.elysium.guild.viewmodel.PointsFilter
 
 @Composable
@@ -39,7 +41,7 @@ fun LeaderboardPodium(
                 member = topThree[1],
                 rank = 2,
                 height = 200.dp,
-                baseColor = Color(0xFF94A3B8), // Silver/Slate
+                baseColor = Constants.COLOR_SILVER,
                 leaderboardType = leaderboardType,
                 pointsFilter = pointsFilter,
                 modifier = Modifier.weight(1f)
@@ -54,7 +56,7 @@ fun LeaderboardPodium(
                 member = topThree[0],
                 rank = 1,
                 height = 240.dp,
-                baseColor = Color(0xFFF59E0B), // Gold/Amber
+                baseColor = Constants.COLOR_GOLD,
                 leaderboardType = leaderboardType,
                 pointsFilter = pointsFilter,
                 modifier = Modifier.weight(1.2f)
@@ -67,7 +69,7 @@ fun LeaderboardPodium(
                 member = topThree[2],
                 rank = 3,
                 height = 180.dp,
-                baseColor = Color(0xFFB45309), // Bronze
+                baseColor = Constants.COLOR_BRONZE,
                 leaderboardType = leaderboardType,
                 pointsFilter = pointsFilter,
                 modifier = Modifier.weight(1f)
@@ -88,14 +90,15 @@ private fun PodiumItem(
     pointsFilter: PointsFilter,
     modifier: Modifier = Modifier
 ) {
+    val isDark = isSystemInDarkTheme()
     Box(
         modifier = modifier
             .height(height)
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        baseColor.copy(alpha = 0.4f),
-                        baseColor.copy(alpha = 0.15f)
+                        baseColor.copy(alpha = if (isDark) 0.4f else 0.25f),
+                        baseColor.copy(alpha = if (isDark) 0.15f else 0.08f)
                     )
                 ),
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
@@ -104,8 +107,8 @@ private fun PodiumItem(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.5f),
-                        Color.White.copy(alpha = 0.1f)
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.3f else 0.15f),
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.02f)
                     )
                 ),
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
@@ -119,7 +122,7 @@ private fun PodiumItem(
             // Rank Circle
             Surface(
                 shape = CircleShape,
-                color = baseColor.copy(alpha = 0.6f),
+                color = baseColor.copy(alpha = if (isDark) 0.6f else 0.8f),
                 modifier = Modifier.size(28.dp).border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -139,7 +142,7 @@ private fun PodiumItem(
                 text = member.username,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
@@ -164,13 +167,13 @@ private fun PodiumItem(
                 text = mainStatValue,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Black,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 20.sp
             )
             Text(
                 text = mainStatLabel,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 fontSize = 9.sp
             )
 
@@ -183,7 +186,6 @@ private fun PodiumItem(
                     PodiumSecondaryStat("Earned", member.pointsEarned.toString())
                 }
                 is PointsLeaderboardEntry -> {
-                    // Show the other two stats that aren't the primary one
                     when (pointsFilter) {
                         PointsFilter.EARNED -> {
                             PodiumSecondaryStat("Spent", member.pointsSpent.toString())
@@ -214,14 +216,14 @@ private fun PodiumSecondaryStat(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             fontSize = 8.sp
         )
         Text(
             text = value,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 9.sp
         )
     }
@@ -234,13 +236,20 @@ fun LeaderboardMemberCard(
     type: LeaderboardType,
     pointsFilter: PointsFilter = PointsFilter.EARNED
 ) {
+    val isDark = isSystemInDarkTheme()
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
+                else MaterialTheme.colorScheme.surface,
+        tonalElevation = if (isDark) 4.dp else 2.dp,
+        shadowElevation = if (isDark) 0.dp else 4.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.03f)
+        )
     ) {
         Row(
             modifier = Modifier

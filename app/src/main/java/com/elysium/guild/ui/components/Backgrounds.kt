@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.elysium.guild.utils.Constants
 
 @Composable
 fun DynamicElysiumBackground(
@@ -33,10 +34,10 @@ fun DynamicElysiumBackground(
             val canvasWidth = size.width
             val canvasHeight = size.height
             
-            // Draw blurred color blobs
+            // Draw blurred color blobs using centralized constants
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF4A148C).copy(alpha = 0.15f), Color.Transparent),
+                    colors = listOf(Constants.COLOR_BLOB_PURPLE.copy(alpha = 0.15f), Color.Transparent),
                     center = Offset(canvasWidth * 0.2f, canvasHeight * 0.2f),
                     radius = 400.dp.toPx()
                 ),
@@ -49,7 +50,7 @@ fun DynamicElysiumBackground(
 
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF0D47A1).copy(alpha = 0.12f), Color.Transparent),
+                    colors = listOf(Constants.COLOR_BLOB_BLUE.copy(alpha = 0.12f), Color.Transparent),
                     center = Offset(canvasWidth * 0.8f, canvasHeight * 0.7f),
                     radius = 500.dp.toPx()
                 ),
@@ -62,7 +63,7 @@ fun DynamicElysiumBackground(
             
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFFFFA000).copy(alpha = 0.08f), Color.Transparent),
+                    colors = listOf(Constants.COLOR_BLOB_ORANGE.copy(alpha = 0.08f), Color.Transparent),
                     center = Offset(canvasWidth * 0.5f, canvasHeight * 0.4f),
                     radius = 350.dp.toPx()
                 ),

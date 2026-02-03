@@ -2,11 +2,13 @@
 
 A modern, high-performance Android application built with Jetpack Compose, designed for elite guild management. This app integrates directly with the Elysium Dashboard API to provide real-time tracking of world bosses, guild events, and member performance.
 
-## 🚀 Version 1.0.8 (Current)
-*   **Auto-Update Engine**: Fully integrated with GitHub Releases. The app automatically detects, downloads, and installs updates from the `brunongmacho/elysium-guild` repository.
-*   **Permanent Signing**: Uses a stable cryptographic signature (`debug.keystore`) to ensure seamless updates without "conflict" errors.
-*   **System Permissions Integration**: A consolidated dashboard in Settings for managing Notifications, Exact Alarms, Battery Optimization, and APK Installation permissions.
-*   **Performance Optimization**: Purged all legacy widget code and Glance dependencies to reduce APK size and memory footprint.
+## 🚀 Version 1.0.10 (Current)
+*   **Deep Theme Synchronization**: All screens (Boss Timers, Events, Leaderboard) now perfectly follow the system appearance with unified color palettes.
+*   **Light Mode Optimization**: Overhauled UI contrast for Light Mode, including a new vibrant **Azure Blue** for the Tracking stage and high-contrast status badges.
+*   **Architecture Centralization**: Unified all UI colors, labels, work names, and intent extras into a single source of truth in `Constants.kt`.
+*   **Modern Notification Engine**: Notification sounds are now managed via modern Android Notification Channels, ensuring reliable sound playback on Android 8.0+.
+*   **Performance Tuning**: Implemented localized recomposition scopes for cards to ensure silky smooth scrolling even during active timer updates.
+*   **Robust Data Mapping**: Added comprehensive `@SerializedName` support to ensure stable API communication regardless of backend naming conventions.
 
 ## 🎯 Core Features
 
@@ -14,23 +16,23 @@ A modern, high-performance Android application built with Jetpack Compose, desig
 *   **Live Countdown**: Track precise spawn times for all world bosses.
 *   **Smart Filtering**: Categorize bosses by `Ready`, `Soon` (within 30m), and `Tracking`.
 *   **Haptic Alerts**: Tactile feedback on status changes and pull-to-refresh actions.
-*   **Visual Progress**: Gradient-coded status rings and progress bars for "Spawning Soon" states.
+*   **Visual Progress**: Adaptive status colors and progress bars optimized for both Light and Dark themes.
 *   **Call to Arms**: Quick-share boss status to Discord/Clipboard with one tap.
 
 ### 2. Guild Events
 *   **Dynamic Schedule**: Syncs with the dashboard to show daily/weekly guild activities.
-*   **Precise Reminders**: Local exact alarms notify you 10 minutes before an event starts.
-*   **Filterable Feed**: Toggle between different event types to stay focused.
+*   **Synced Visuals**: Event cards now share the same premium visual style and stage logic as Boss cards.
+*   **Precise Reminders**: Local exact alarms notify you exactly when the action starts.
 
 ### 3. Leaderboards & Profiles
 *   **Competitive Rankings**: Track top performers in `Attendance` and `Points`.
-*   **Podium Display**: Special UI treatment for the Top 3 members.
+*   **Adaptive Podium**: High-contrast podium display that works perfectly in all lighting conditions.
 *   **Detailed Statistics**: View personal participation history and point accrual.
 
 ### 4. Advanced Settings
-*   **Theme Engine**: Support for `Light`, `Dark`, and `System` modes.
-*   **Permission Auditor**: Real-time status of required system permissions with deep links to fix them instantly.
-*   **Software Updates**: One-tap version checking with release notes display.
+*   **Theme Engine**: Support for `Light`, `Dark`, and `System` modes with instant UI switching.
+*   **Sound Selection**: Choose your preferred alert sound with live previews.
+*   **Permission Auditor**: Real-time monitoring of required system permissions.
 
 ## 🛠 Tech Stack
 *   **Language**: Kotlin 1.9+
@@ -48,14 +50,13 @@ com.elysium.guild/
 ├── di/                  # Hilt modules for Network, Database, and Utils
 ├── ui/
 │   ├── screens/         # BossTimers, Leaderboard, Events, Profile
-│   ├── components/      # Glassmorphic UI, BossCards, Profile widgets
-│   └── theme/           # Material 3 Color Schemes and Typography
+│   ├── components/      # Centralized UI cards and widgets
+│   └── theme/           # Adaptive Material 3 Color Schemes
 ├── viewmodel/           # State management for all major screens
-├── models/              # POJO and Room Entity definitions
-├── network/             # Retrofit interfaces for Dashboard and Updates
-├── repository/          # Single source of truth for data flow
+├── models/              # Robust data models with API mapping
+├── repository/          # Data layer with detailed error reporting
 ├── database/            # Room Database and DAO definitions
-└── utils/               # UpdateManager, NotificationHelper, Constants
+└── utils/               # Constants, UIUtils, and Notification management
 ```
 
 ## 📦 Setup & Deployment
@@ -63,14 +64,14 @@ com.elysium.guild/
 ### For Developers
 1.  Open in **Android Studio Ladybug** (or later).
 2.  Ensure **JDK 17** is configured.
-3.  Set the `BASE_URL` in `Constants.kt` to point to your Koyeb/Backend instance.
+3.  Set the `BASE_URL` in `Constants.kt` to point to your API instance.
 
 ### For Releasing Updates
 The app uses a fully automated **GitHub Actions** pipeline:
-1.  Update `versionCode` in `app/build.gradle`.
+1.  Update `versionCode` and `versionName` in `app/build.gradle`.
 2.  Update `update-manifest.json` in the root folder.
 3.  Push changes: `git push origin main`.
-4.  Create a tag: `git tag v1.0.8 && git push origin v1.0.8`.
+4.  Create a tag: `git tag v1.0.10 && git push origin v1.0.10`.
 5.  GitHub will build the APK and attach it to the release automatically.
 
 ---

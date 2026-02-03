@@ -14,8 +14,8 @@ class BossAlarmReceiver : BroadcastReceiver() {
     lateinit var notificationHelper: NotificationHelper
 
     override fun onReceive(context: Context, intent: Intent) {
-        val bossName = intent.getStringExtra("BOSS_NAME") ?: "Unknown Boss"
-        val minutesRemaining = intent.getIntExtra("MINUTES_REMAINING", 0)
+        val bossName = intent.getStringExtra(Constants.EXTRA_BOSS_NAME) ?: "Unknown Boss"
+        val minutesRemaining = intent.getIntExtra(Constants.EXTRA_MINUTES_REMAINING, 0)
         
         Log.d("BossAlarmReceiver", "Alarm triggered for $bossName ($minutesRemaining mins before spawn)")
         

@@ -39,8 +39,7 @@ class BossNotificationWorker @AssistedInject constructor(
                     val spawnTimeStr = boss.nextSpawnTime ?: return@forEach
                     val spawnTime = try { Instant.parse(spawnTimeStr) } catch (e: Exception) { return@forEach }
                     
-                    // 10 minutes before boss spawn
-                    scheduleExactAlarm(boss.bossName, spawnTime, 10, isEvent = false)
+                    scheduleExactAlarm(boss.bossName, spawnTime, preferenceManager.bossNotificationOffset, isEvent = false)
                 }
             }
 
@@ -51,8 +50,7 @@ class BossNotificationWorker @AssistedInject constructor(
                     val startTimeStr = event.startTime ?: return@forEach
                     val startTime = try { Instant.parse(startTimeStr) } catch (e: Exception) { return@forEach }
                     
-                    // 10 minutes before event starts
-                    scheduleExactAlarm(event.name, startTime, 10, isEvent = true)
+                    scheduleExactAlarm(event.name, startTime, Constants.DEFAULT_NOTIFICATION_OFFSET_MINUTES, isEvent = true)
                 }
             }
 
@@ -71,9 +69,9 @@ class BossNotificationWorker @AssistedInject constructor(
 
         val alarmManager = applicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(applicationContext, BossAlarmReceiver::class.java).apply {
-            putExtra("BOSS_NAME", name) // Receiver uses BOSS_NAME for the title
-            putExtra("MINUTES_REMAINING", minutesBefore)
-            putExtra("IS_EVENT", isEvent)
+            putExtra(Constants.EXTRA_BOSS_NAME, name)
+            putExtra(Constants.EXTRA_MINUTES_REMAINING, minutesBefore)
+            putExtra(Constants.EXTRA_IS_EVENT, isEvent)
         }
         
         // Unique ID: Use name hash + offset to avoid collisions between boss and events
@@ -89,7 +87,7 @@ class BossNotificationWorker @AssistedInject constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
-                Log.d("BossWorker", "Scheduled 10m alarm for ${if (isEvent) "event" else "boss"}: $name")
+                Log.d("BossWorker", "Scheduled ${minutesBefore}m alarm for ${if (isEvent) "event" else "boss"}: $name")
             } else {
                 alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
             }
@@ -99,16 +97,13 @@ class BossNotificationWorker @AssistedInject constructor(
     }
 
     companion object {
-        private const val PERIODIC_WORK_NAME = "BossNotificationWorkPeriodic"
-        private const val ONE_TIME_WORK_NAME = "BossNotificationWorkImmediate"
-
         fun schedule(context: Context) {
             val workManager = WorkManager.getInstance(context)
             val immediateRequest = OneTimeWorkRequestBuilder<BossNotificationWorker>().build()
-            workManager.enqueueUniqueWork(ONE_TIME_WORK_NAME, ExistingWorkPolicy.REPLACE, immediateRequest)
+            workManager.enqueueUniqueWork(Constants.WORK_NAME_IMMEDIATE, ExistingWorkPolicy.REPLACE, immediateRequest)
 
             val periodicRequest = PeriodicWorkRequestBuilder<BossNotificationWorker>(1, TimeUnit.HOURS).build()
-            workManager.enqueueUniquePeriodicWork(PERIODIC_WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, periodicRequest)
+            workManager.enqueueUniquePeriodicWork(Constants.WORK_NAME_PERIODIC, ExistingPeriodicWorkPolicy.UPDATE, periodicRequest)
         }
     }
 }

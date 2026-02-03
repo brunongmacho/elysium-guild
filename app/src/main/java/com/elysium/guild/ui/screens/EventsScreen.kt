@@ -29,7 +29,7 @@ fun EventsScreen(
     viewModel: EventsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val currentTime by viewModel.currentTime.collectAsState()
+    val currentTime = viewModel.currentTime.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
     
     LaunchedEffect(Unit) {
@@ -38,7 +38,7 @@ fun EventsScreen(
     
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFF0B0B1A)
+        color = MaterialTheme.colorScheme.background
     ) {
         DynamicElysiumBackground {
             PullToRefreshBox(
@@ -71,7 +71,7 @@ fun EventsScreen(
                             text = "Guild Events",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     
