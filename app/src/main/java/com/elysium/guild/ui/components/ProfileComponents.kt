@@ -1,9 +1,13 @@
 package com.elysium.guild.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -113,47 +117,70 @@ fun NotificationToggle(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onCheckedChange(!checked) }
-            .padding(vertical = 4.dp),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onCheckedChange(!checked) }
+            )
+            .padding(vertical = 12.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
         }
 
-        // Glassy Custom Switch
-        Surface(
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Robust Glassy Switch
+        val thumbOffset by animateDpAsState(
+            targetValue = if (checked) 24.dp else 0.dp,
+            animationSpec = tween(durationMillis = 200),
+            label = "ThumbAnimation"
+        )
+
+        val trackColor by animateColorAsState(
+            targetValue = if (checked) primaryColor.copy(alpha = if (isDark) 0.3f else 0.2f)
+                          else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+            label = "TrackColor"
+        )
+
+        Box(
             modifier = Modifier
-                .size(48.dp, 28.dp)
-                .clip(CircleShape),
-            color = if (checked) primaryColor.copy(alpha = if (isDark) 0.25f else 0.15f)
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-            border = BorderStroke(
-                width = 1.dp,
-                brush = if (checked) {
-                    Brush.linearGradient(colors = listOf(primaryColor.copy(alpha = 0.8f), primaryColor.copy(alpha = 0.2f)))
-                } else {
-                    Brush.linearGradient(colors = listOf(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)))
-                }
-            )
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                val alignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart
-                Box(
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .size(20.dp)
-                        .align(alignment)
-                        .clip(CircleShape)
-                        .background(
-                            if (checked) primaryColor
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                        )
-                        .shadow(if (checked) 4.dp else 0.dp, CircleShape)
+                .size(52.dp, 28.dp)
+                .background(trackColor, CircleShape)
+                .border(
+                    width = 1.dp,
+                    brush = if (checked) {
+                        Brush.linearGradient(listOf(primaryColor.copy(alpha = 0.8f), primaryColor.copy(alpha = 0.4f)))
+                    } else {
+                        Brush.linearGradient(listOf(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)))
+                    },
+                    shape = CircleShape
                 )
-            }
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(4.dp)
+                    .offset(x = thumbOffset)
+                    .size(20.dp)
+                    .background(
+                        if (checked) primaryColor
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        CircleShape
+                    )
+                    .shadow(if (checked) 4.dp else 0.dp, CircleShape)
+            )
         }
     }
 }
