@@ -44,8 +44,11 @@ class LeaderboardRepository @Inject constructor(
                 if (body != null && body.success == true) {
                     val dataElement = body.data
                     if (dataElement != null) {
+                        Log.d("LeaderboardRepository", "Points JSON: $dataElement")
                         val typeToken = object : TypeToken<List<PointsLeaderboardEntry>>() {}.type
-                        return gson.fromJson(dataElement, typeToken)
+                        val list: List<PointsLeaderboardEntry> = gson.fromJson(dataElement, typeToken)
+                        Log.d("LeaderboardRepository", "Parsed Points Size: ${list.size}")
+                        return list
                     }
                 }
             }

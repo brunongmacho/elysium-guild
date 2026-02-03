@@ -90,39 +90,18 @@ private fun PodiumItem(
     pointsFilter: PointsFilter,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
-    Box(
-        modifier = modifier
-            .height(height)
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        baseColor.copy(alpha = if (isDark) 0.4f else 0.25f),
-                        baseColor.copy(alpha = if (isDark) 0.15f else 0.08f)
-                    )
-                ),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-            )
-            .border(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.3f else 0.15f),
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.02f)
-                    )
-                ),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-            ),
-        contentAlignment = Alignment.TopCenter
+    ElysiumGlassCard(
+        modifier = modifier.height(height),
+        statusColor = baseColor
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(8.dp)
+            modifier = Modifier.padding(8.dp).fillMaxWidth()
         ) {
             // Rank Circle
             Surface(
                 shape = CircleShape,
-                color = baseColor.copy(alpha = if (isDark) 0.6f else 0.8f),
+                color = baseColor.copy(alpha = 0.6f),
                 modifier = Modifier.size(28.dp).border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -236,21 +215,7 @@ fun LeaderboardMemberCard(
     type: LeaderboardType,
     pointsFilter: PointsFilter = PointsFilter.EARNED
 ) {
-    val isDark = isSystemInDarkTheme()
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
-                else MaterialTheme.colorScheme.surface,
-        tonalElevation = if (isDark) 4.dp else 2.dp,
-        shadowElevation = if (isDark) 0.dp else 4.dp,
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.03f)
-        )
-    ) {
+    ElysiumGlassCard {
         Row(
             modifier = Modifier
                 .padding(16.dp)

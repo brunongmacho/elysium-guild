@@ -26,7 +26,7 @@ import com.elysium.guild.viewmodel.LeaderboardPeriod
 import com.elysium.guild.viewmodel.PointsFilter
 import com.elysium.guild.utils.Constants
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun LeaderboardScreen(
     navController: NavController,
@@ -42,178 +42,186 @@ fun LeaderboardScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Centered Header using Centralized Constants
+        DynamicElysiumBackground {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = Constants.TITLE_LEADERBOARD,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = Constants.SUBTITLE_LEADERBOARD,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search Bar
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search members...", fontSize = 14.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (uiState.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    cursorColor = MaterialTheme.colorScheme.primary
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Type Selection
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    modifier = Modifier.weight(1f),
-                    onClick = { viewModel.setLeaderboardType(LeaderboardType.ATTENDANCE) },
-                    label = { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Attendance", fontSize = 12.sp, maxLines = 1) } },
-                    selected = uiState.leaderboardType == LeaderboardType.ATTENDANCE
-                )
-
-                FilterChip(
-                    modifier = Modifier.weight(1f),
-                    onClick = { viewModel.setLeaderboardType(LeaderboardType.POINTS) },
-                    label = { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Points", fontSize = 12.sp, maxLines = 1) } },
-                    selected = uiState.leaderboardType == LeaderboardType.POINTS
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Sub-Filter Selection
-            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
             ) {
-                if (uiState.leaderboardType == LeaderboardType.ATTENDANCE) {
-                    LeaderboardPeriod.entries.forEach { period ->
-                        FilterChip(
-                            onClick = { viewModel.setPeriod(period) },
-                            label = { Text(period.label, fontSize = 11.sp) },
-                            selected = uiState.selectedPeriod == period
-                        )
-                    }
-                } else {
-                    PointsFilter.entries.forEach { filter ->
-                        FilterChip(
-                            onClick = { viewModel.setPointsFilter(filter) },
-                            label = { Text(filter.label, fontSize = 11.sp) },
-                            selected = uiState.selectedPointsFilter == filter
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            when {
-                uiState.isLoading -> {
-                    LoadingIndicator()
-                }
-
-                uiState.error != null -> {
-                    val errorMessage = uiState.error ?: "Unknown error"
-                    ErrorMessage(
-                        message = errorMessage,
-                        onRetry = { viewModel.refreshLeaderboard() }
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Centered Header
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = Constants.TITLE_LEADERBOARD,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = Constants.SUBTITLE_LEADERBOARD,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
                     )
                 }
+                
+                Spacer(modifier = Modifier.height(16.dp))
 
-                uiState.filteredLeaderboard.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (uiState.searchQuery.isEmpty()) "No data available" else "No members found matching \"${uiState.searchQuery}\"",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
+                // Search Bar
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search members...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 14.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+                    trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                            }
+                        }
+                    } else null,
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                    ),
+                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Type Selection using FlowRow for responsiveness
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ElysiumFilterChip(
+                        modifier = Modifier.weight(1f),
+                        selected = uiState.leaderboardType == LeaderboardType.ATTENDANCE,
+                        onClick = { viewModel.setLeaderboardType(LeaderboardType.ATTENDANCE) },
+                        label = "Attendance"
+                    )
+
+                    ElysiumFilterChip(
+                        modifier = Modifier.weight(1f),
+                        selected = uiState.leaderboardType == LeaderboardType.POINTS,
+                        onClick = { viewModel.setLeaderboardType(LeaderboardType.POINTS) },
+                        label = "Points"
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Sub-Filter Selection using FlowRow
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (uiState.leaderboardType == LeaderboardType.ATTENDANCE) {
+                        LeaderboardPeriod.entries.forEach { period ->
+                            ElysiumFilterChip(
+                                selected = uiState.selectedPeriod == period,
+                                onClick = { viewModel.setPeriod(period) },
+                                label = period.label
+                            )
+                        }
+                    } else {
+                        PointsFilter.entries.forEach { filter ->
+                            ElysiumFilterChip(
+                                selected = uiState.selectedPointsFilter == filter,
+                                onClick = { viewModel.setPointsFilter(filter) },
+                                label = filter.label
+                            )
+                        }
                     }
                 }
+                
+                Spacer(modifier = Modifier.height(16.dp))
 
-                else -> {
-                    if (uiState.searchQuery.isEmpty()) {
-                        LeaderboardPodium(
-                            topThree = uiState.filteredLeaderboard.take(3),
-                            leaderboardType = uiState.leaderboardType,
-                            pointsFilter = uiState.selectedPointsFilter
-                        )
+                Box(modifier = Modifier.weight(1f)) {
+                    when {
+                        uiState.isLoading -> {
+                            LoadingIndicator()
+                        }
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        uiState.error != null -> {
+                            val errorMessage = uiState.error ?: "Unknown error"
+                            ErrorMessage(
+                                message = errorMessage,
+                                onRetry = { viewModel.refreshLeaderboard() }
+                            )
+                        }
 
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(bottom = 24.dp)
-                        ) {
-                            items(uiState.filteredLeaderboard.drop(3)) { member ->
-                                LeaderboardMemberCard(
-                                    member = member,
-                                    rank = uiState.filteredLeaderboard.indexOf(member) + 1,
-                                    type = uiState.leaderboardType,
-                                    pointsFilter = uiState.selectedPointsFilter
+                        uiState.filteredLeaderboard.isEmpty() -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (uiState.searchQuery.isEmpty()) "No data available" else "No members found matching \"${uiState.searchQuery}\"",
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
                             }
                         }
-                    } else {
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(bottom = 24.dp)
-                        ) {
-                            items(uiState.filteredLeaderboard) { member ->
-                                LeaderboardMemberCard(
-                                    member = member,
-                                    rank = uiState.filteredLeaderboard.indexOf(member) + 1,
-                                    type = uiState.leaderboardType,
-                                    pointsFilter = uiState.selectedPointsFilter
-                                )
+
+                        else -> {
+                            if (uiState.searchQuery.isEmpty()) {
+                                Column {
+                                    LeaderboardPodium(
+                                        topThree = uiState.filteredLeaderboard.take(3),
+                                        leaderboardType = uiState.leaderboardType,
+                                        pointsFilter = uiState.selectedPointsFilter
+                                    )
+
+                                    Spacer(modifier = Modifier.height(24.dp))
+
+                                    LazyColumn(
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(bottom = 24.dp)
+                                    ) {
+                                        items(uiState.filteredLeaderboard.drop(3)) { member ->
+                                            LeaderboardMemberCard(
+                                                member = member,
+                                                rank = uiState.filteredLeaderboard.indexOf(member) + 1,
+                                                type = uiState.leaderboardType,
+                                                pointsFilter = uiState.selectedPointsFilter
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(bottom = 24.dp)
+                                ) {
+                                    items(uiState.filteredLeaderboard) { member ->
+                                        LeaderboardMemberCard(
+                                            member = member,
+                                            rank = uiState.filteredLeaderboard.indexOf(member) + 1,
+                                            type = uiState.leaderboardType,
+                                            pointsFilter = uiState.selectedPointsFilter
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

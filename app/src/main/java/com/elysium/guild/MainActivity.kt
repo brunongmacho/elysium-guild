@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -19,7 +20,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.WindowCompat
 import com.elysium.guild.ui.navigation.ElysiumNavigation
 import com.elysium.guild.ui.theme.ElysiumGuildTheme
 import com.elysium.guild.utils.BossNotificationWorker
@@ -27,7 +27,6 @@ import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
 import com.elysium.guild.viewmodel.ProfileViewModel
 import com.elysium.guild.viewmodel.UpdateState
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -55,8 +54,8 @@ class MainActivity : ComponentActivity() {
         // Install splash screen
         installSplashScreen()
         
-        // Enable edge-to-edge display
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Enable edge-to-edge display (replaces deprecated systemUiController)
+        enableEdgeToEdge()
         
         super.onCreate(savedInstanceState)
         
@@ -74,20 +73,6 @@ class MainActivity : ComponentActivity() {
             val updateState by profileViewModel.updateState.collectAsState()
             
             ElysiumGuildTheme(themeMode = themeMode) {
-                val systemUiController = rememberSystemUiController()
-                val darkTheme = when (themeMode) {
-                    Constants.THEME_LIGHT -> false
-                    Constants.THEME_DARK -> true
-                    else -> isSystemInDarkTheme()
-                }
-                
-                SideEffect {
-                    systemUiController.setSystemBarsColor(
-                        color = Color.Transparent,
-                        darkIcons = !darkTheme
-                    )
-                }
-
                 Box {
                     ElysiumNavigation(
                         preferenceManager = preferenceManager

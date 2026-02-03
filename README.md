@@ -2,13 +2,12 @@
 
 A modern, high-performance Android application built with Jetpack Compose, designed for elite guild management. This app integrates directly with the Elysium Dashboard API to provide real-time tracking of world bosses, guild events, and member performance.
 
-## 🚀 Version 1.0.11 (Current)
-*   **Centered UI Architecture**: All page headers and subtitles are now perfectly centered across the entire app for a balanced, premium aesthetic.
-*   **GCASH Donation Integration**: A new "Guild Support" feature in Settings that instantly opens a full-height QR display for easy GCASH scanning.
-*   **Page Subtitles**: Every major screen now features descriptive subtitles (e.g., "Stay synced with guild activities") to improve UX clarity.
-*   **Deep Logic Centralization**: Page titles, subtitles, resource names, and UI behavioral logic have been moved into `Constants.kt`, making the project extremely easy to maintain and scale.
-*   **Performance Synchronization**: Boss and Event timers now share the exact same optimized logic and smooth color transitions, ensuring silky smooth scrolling.
-*   **Light Mode Refinement**: Introduced a vibrant **Azure Blue** for tracking stages in Light Mode, paired with high-contrast adaptive status badges.
+## 🚀 Version 1.0.12 (Latest)
+*   **Premium Glassy UI Design**: Every interactive element (filter chips, toggles, buttons) has been redesigned with a premium glassy texture, including translucent backgrounds and custom linear gradient borders for a "frosted glass" aesthetic.
+*   **ELYSIUM Rotation Highlighting**: World Boss rotations for our guild **ELYSIUM** now feature a visual popout with a unique guild glow and an explicit "(OUR TURN)" status indicator for instant recognition.
+*   **Glassy Top-Notifications**: Replaced standard system toasts with theme-aware, glassy notification cards that slide in from the top, providing a more integrated and consistent feedback experience.
+*   **UI Layout Optimization**: Refined badge and chip layouts to prevent text wrapping on smaller devices, ensuring all numbers and labels remain on a single, clean line.
+*   **Centralized Settings Architecture**: Decoupled settings components from screen logic, improving performance, modularity, and maintainability across the app.
 
 ## 🎯 Core Features
 
@@ -21,7 +20,7 @@ A modern, high-performance Android application built with Jetpack Compose, desig
 
 ### 2. Guild Events
 *   **Dynamic Schedule**: Syncs with the dashboard to show daily/weekly guild activities.
-*   **Synced Visuals**: Event cards now share the same premium visual style and stage logic as Boss cards.
+*   **Synced Visuals**: Event cards share the same premium glassy style and stage logic as Boss cards.
 *   **Precise Reminders**: Local exact alarms notify you exactly when the action starts.
 
 ### 3. Leaderboards & Profiles
@@ -71,7 +70,7 @@ The app uses a fully automated **GitHub Actions** pipeline:
 1.  Update `versionCode` and `versionName` in `app/build.gradle`.
 2.  Update `update-manifest.json` in the root folder.
 3.  Push changes: `git push origin main`.
-4.  Create a tag: `git tag v1.0.11 && git push origin v1.0.11`.
+4.  Create a tag: `git tag v1.0.12 && git push origin v1.0.12`.
 5.  GitHub will build the APK and attach it to the release automatically.
 
 ---

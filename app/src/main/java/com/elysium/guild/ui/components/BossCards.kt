@@ -54,102 +54,68 @@ fun BossTimerCard(
         label = "CardColorAnimation"
     )
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.2f else 0.15f),
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.02f)
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
-            ),
-        shape = RoundedCornerShape(24.dp),
-        color = if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.4f) 
-                else MaterialTheme.colorScheme.surface,
-        tonalElevation = if (isDark) 4.dp else 2.dp,
-        shadowElevation = if (isDark) 0.dp else 3.dp
+    ElysiumGlassCard(
+        statusColor = animatedColor
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                animatedColor.copy(alpha = if (isDark) 0.12f else 0.1f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BossAvatar(boss = boss, statusColor = animatedColor)
 
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
                 ) {
-                    BossAvatar(boss = boss, statusColor = animatedColor)
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
+                        Text(
+                            text = boss.bossName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${boss.bossPoints} Points",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { shareBossStatus(context, boss, currentTime.value) },
+                            modifier = Modifier.size(32.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = boss.bossName,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "${boss.bossPoints} Points",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { shareBossStatus(context, boss, currentTime.value) },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Share,
-                                        contentDescription = "Share",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(4.dp))
-
-                                StatusBadge(boss = boss, currentTime = currentTime, statusColor = animatedColor)
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
 
-                        if (boss.rotation?.isRotating == true) {
-                            RotationStatus(boss.rotation)
-                        }
-
-                        SpawnTimeText(boss)
+                        StatusBadge(boss = boss, currentTime = currentTime, statusColor = animatedColor)
                     }
                 }
 
-                DynamicProgressBar(boss, currentTime, animatedColor)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (boss.rotation?.isRotating == true) {
+                    RotationStatus(boss.rotation)
+                }
+
+                SpawnTimeText(boss)
             }
         }
+
+        DynamicProgressBar(boss, currentTime, animatedColor)
     }
 }
 
@@ -208,11 +174,21 @@ private fun StatusBadge(
 @Composable
 private fun RotationStatus(rotation: RotationInfo) {
     val isDark = isSystemInDarkTheme()
+    val isElysium = rotation.currentGuild?.uppercase() == "ELYSIUM"
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.03f), 
+                color = if (isElysium) 
+                    MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.15f else 0.1f)
+                else 
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.03f), 
+                shape = RoundedCornerShape(8.dp)
+            )
+            .border(
+                width = if (isElysium) 1.dp else 0.dp,
+                color = if (isElysium) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent,
                 shape = RoundedCornerShape(8.dp)
             )
             .padding(8.dp)
@@ -223,22 +199,23 @@ private fun RotationStatus(rotation: RotationInfo) {
                     modifier = Modifier
                         .size(6.dp)
                         .background(
-                            if (rotation.isOurTurn == true) MaterialTheme.colorScheme.primary else Color.Gray,
+                            if (isElysium) MaterialTheme.colorScheme.primary else Color.Gray,
                             CircleShape
                         )
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Current: $current",
+                    text = if (isElysium) "Current: $current (OUR TURN)" else "Current: $current",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (rotation.isOurTurn == true)
+                    color = if (isElysium)
                         MaterialTheme.colorScheme.primary
                     else
                         MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (rotation.isOurTurn == true)
-                        FontWeight.Bold
+                    fontWeight = if (isElysium)
+                        FontWeight.ExtraBold
                     else
-                        FontWeight.Medium
+                        FontWeight.Medium,
+                    letterSpacing = if (isElysium) 0.5.sp else 0.sp
                 )
             }
         }

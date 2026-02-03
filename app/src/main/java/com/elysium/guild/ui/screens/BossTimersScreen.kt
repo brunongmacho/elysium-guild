@@ -241,7 +241,6 @@ fun BossTimersScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterChipsWithCounts(
     selectedFilter: String,
@@ -254,58 +253,12 @@ fun FilterChipsWithCounts(
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         for (filter in filters) {
-            FilterChip(
+            ElysiumFilterChip(
                 modifier = Modifier.weight(1f),
                 selected = selectedFilter == filter,
                 onClick = { onFilterSelected(filter) },
-                label = { 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = filter,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Visible,
-                            fontSize = 9.sp,
-                            softWrap = false,
-                            modifier = Modifier.weight(1f, fill = false),
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Surface(
-                            color = if (selectedFilter == filter) 
-                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f) 
-                            else 
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = (counts[filter] ?: 0).toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 0.dp),
-                                fontWeight = FontWeight.Black,
-                                fontSize = 9.sp,
-                                softWrap = false,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                    labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    enabled = true,
-                    selected = selectedFilter == filter,
-                    borderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                    selectedBorderColor = MaterialTheme.colorScheme.primary
-                )
+                label = filter,
+                count = counts[filter]
             )
         }
     }

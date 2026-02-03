@@ -48,10 +48,18 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.elysium.guild.R
+import com.elysium.guild.ui.components.DynamicElysiumBackground
+import com.elysium.guild.ui.components.ElysiumGlassCard
+import com.elysium.guild.ui.components.NotificationToggle
+import com.elysium.guild.ui.components.PermissionStatusItem
+import com.elysium.guild.ui.components.SettingsCard
+import com.elysium.guild.ui.components.SoundSelectionItem
+import com.elysium.guild.ui.components.ThemeOptionButton
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
 import com.elysium.guild.viewmodel.ProfileViewModel
 import com.elysium.guild.viewmodel.UpdateState
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +85,8 @@ fun ProfileScreen(
     var pendingSound by remember(savedSound) { mutableStateOf(savedSound) }
     var pendingBossNotif by remember(savedBossNotif) { mutableStateOf(savedBossNotif) }
     var pendingEventNotif by remember(savedEventNotif) { mutableStateOf(savedEventNotif) }
+
+    var showSaveSuccess by remember { mutableStateOf(false) }
 
     val hasChanges = pendingThemeMode != themeMode ||
             pendingHapticEnabled != hapticEnabled ||
@@ -117,6 +127,13 @@ fun ProfileScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(showSaveSuccess) {
+        if (showSaveSuccess) {
+            delay(3000)
+            showSaveSuccess = false
+        }
     }
 
     // Handle Update UI Prompts
@@ -166,566 +183,499 @@ fun ProfileScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Centered Settings Header
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = Constants.TITLE_SETTINGS,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = Constants.SUBTITLE_SETTINGS,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        textAlign = TextAlign.Center
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 1. APP UPDATES
-                SettingsCard(
-                    title = "App Update",
-                    icon = Icons.Default.SystemUpdate
+        DynamicElysiumBackground {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Centered Settings Header
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = Constants.TITLE_SETTINGS,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = Constants.SUBTITLE_SETTINGS,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // 1. APP UPDATES
+                    SettingsCard(
+                        title = "App Update",
+                        icon = Icons.Default.SystemUpdate
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = "Software Update", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        text = when (updateState) {
+                                            UpdateState.Checking -> "Checking for updates..."
+                                            UpdateState.Downloading -> "Downloading update..."
+                                            else -> "Keep your app up to date"
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                
+                                // Glassy Update Button
+                                Surface(
+                                    onClick = { viewModel.checkForUpdates() },
+                                    enabled = updateState !is UpdateState.Checking && updateState !is UpdateState.Downloading,
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.2f else 0.1f),
+                                    border = BorderStroke(
+                                        width = 1.dp,
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                            )
+                                        )
+                                    )
+                                ) {
+                                    Box(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (updateState is UpdateState.Checking) {
+                                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                                        } else {
+                                            Text(
+                                                text = "Check",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            Text(
+                                text = "Current Version: $currentVersionName",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                fontSize = 10.sp,
+                                modifier = Modifier.align(Alignment.End)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 2. ALERT & INTERACTION PREFERENCES
+                    SettingsCard(
+                        title = "Alert and interaction",
+                        icon = Icons.Default.Notifications
+                    ) {
+                        Column {
+                            NotificationToggle(
+                                title = "Boss Spawn Alerts",
+                                description = "Precise 10m warning for world bosses",
+                                checked = pendingBossNotif,
+                                onCheckedChange = { pendingBossNotif = it }
+                            )
+                            
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                            
+                            NotificationToggle(
+                                title = "Event Reminders",
+                                description = "Precise 10m warning for guild activities",
+                                checked = pendingEventNotif,
+                                onCheckedChange = { pendingEventNotif = it }
+                            )
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+
+                            NotificationToggle(
+                                title = "Haptic Feedback",
+                                description = "Vibrate on status changes and refreshes",
+                                checked = pendingHapticEnabled,
+                                onCheckedChange = { pendingHapticEnabled = it }
+                            )
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+
+                            // SOUND SELECTION
+                            SoundSelectionItem(
+                                selectedSound = pendingSound,
+                                onSoundSelected = { 
+                                    pendingSound = it
+                                    playSoundPreview(context, it)
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 3. APPEARANCE
+                    SettingsCard(
+                        title = "Appearance",
+                        icon = Icons.Default.Palette
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ThemeOptionButton(
+                                text = "Light",
+                                isSelected = pendingThemeMode == Constants.THEME_LIGHT,
+                                onClick = { pendingThemeMode = Constants.THEME_LIGHT },
+                                modifier = Modifier.weight(1f)
+                            )
+                            ThemeOptionButton(
+                                text = "Dark",
+                                isSelected = pendingThemeMode == Constants.THEME_DARK,
+                                onClick = { pendingThemeMode = Constants.THEME_DARK },
+                                modifier = Modifier.weight(1f)
+                            )
+                            ThemeOptionButton(
+                                text = "System",
+                                isSelected = pendingThemeMode == Constants.THEME_SYSTEM,
+                                onClick = { pendingThemeMode = Constants.THEME_SYSTEM },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 4. GUILD SUPPORT (Donation Card)
+                    SettingsCard(
+                        title = "Guild Support",
+                        icon = Icons.Default.Favorite
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { showDonationSheet = true }
+                                .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "Software Update", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    text = when (updateState) {
-                                        UpdateState.Checking -> "Checking for updates..."
-                                        UpdateState.Downloading -> "Downloading update..."
-                                        else -> "Keep your app up to date"
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Text(text = "Donate to Guild", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                Text(text = "Help us keep the servers running", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Button(
-                                onClick = { viewModel.checkForUpdates() },
-                                enabled = updateState !is UpdateState.Checking && updateState !is UpdateState.Downloading,
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                if (updateState is UpdateState.Checking) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                                } else {
-                                    Text("Check")
-                                }
-                            }
-                        }
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Text(
-                            text = "Current Version: $currentVersionName",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            fontSize = 10.sp,
-                            modifier = Modifier.align(Alignment.End)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 2. ALERT & INTERACTION PREFERENCES
-                SettingsCard(
-                    title = "Alert and interaction",
-                    icon = Icons.Default.Notifications
-                ) {
-                    Column {
-                        NotificationToggle(
-                            title = "Boss Spawn Alerts",
-                            description = "Precise 10m warning for world bosses",
-                            checked = pendingBossNotif,
-                            onCheckedChange = { pendingBossNotif = it }
-                        )
-                        
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                        
-                        NotificationToggle(
-                            title = "Event Reminders",
-                            description = "Precise 10m warning for guild activities",
-                            checked = pendingEventNotif,
-                            onCheckedChange = { pendingEventNotif = it }
-                        )
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-
-                        NotificationToggle(
-                            title = "Haptic Feedback",
-                            description = "Vibrate on status changes and refreshes",
-                            checked = pendingHapticEnabled,
-                            onCheckedChange = { pendingHapticEnabled = it }
-                        )
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-
-                        // SOUND SELECTION
-                        SoundSelectionItem(
-                            selectedSound = pendingSound,
-                            onSoundSelected = { 
-                                pendingSound = it
-                                playSoundPreview(context, it)
-                            }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 3. APPEARANCE
-                SettingsCard(
-                    title = "Appearance",
-                    icon = Icons.Default.Palette
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        ThemeOptionButton(
-                            text = "Light",
-                            isSelected = pendingThemeMode == Constants.THEME_LIGHT,
-                            onClick = { pendingThemeMode = Constants.THEME_LIGHT },
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        ThemeOptionButton(
-                            text = "Dark",
-                            isSelected = pendingThemeMode == Constants.THEME_DARK,
-                            onClick = { pendingThemeMode = Constants.THEME_DARK },
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        ThemeOptionButton(
-                            text = "System",
-                            isSelected = pendingThemeMode == Constants.THEME_SYSTEM,
-                            onClick = { pendingThemeMode = Constants.THEME_SYSTEM },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 4. GUILD SUPPORT (Donation Card)
-                SettingsCard(
-                    title = "Guild Support",
-                    icon = Icons.Default.Favorite
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDonationSheet = true }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Donate to Guild", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                            Text(text = "Help us keep the servers running", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Icon(
-                            imageVector = Icons.Default.QrCode2,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                }
-
-                // 5. PERMISSIONS (Dynamic)
-                val needsNotificationPermission = !areNotificationsEnabled
-                val needsAlarmPermission = !canScheduleExactAlarms
-                val needsBatteryPermission = !isIgnoringBatteryOptimizations
-                val needsInstallPermission = !canInstallPackages
-                val hasNetworkIssue = !isNetworkAvailable
-
-                val showPermissionsSection = needsNotificationPermission ||
-                                           needsAlarmPermission ||
-                                           needsBatteryPermission ||
-                                           needsInstallPermission ||
-                                           hasNetworkIssue
-
-                if (showPermissionsSection) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    SettingsCard(
-                        title = "Permissions",
-                        icon = Icons.Default.SettingsSuggest
-                    ) {
-                        Column {
-                            var first = true
-
-                            if (needsNotificationPermission) {
-                                PermissionStatusItem(
-                                    title = "Push Notifications",
-                                    statusText = "Denied (Tap to allow)",
-                                    isActive = false,
-                                    icon = Icons.Default.NotificationsOff,
-                                    onClick = { openNotificationSettings(context) }
-                                )
-                                first = false
-                            }
-
-                            if (needsAlarmPermission) {
-                                if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                                PermissionStatusItem(
-                                    title = "Exact Alarm Timing",
-                                    statusText = "Delayed (Tap to allow)",
-                                    isActive = false,
-                                    icon = Icons.Default.TimerOff,
-                                    onClick = { openAlarmSettings(context) }
-                                )
-                                first = false
-                            }
-
-                            if (needsBatteryPermission) {
-                                if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                                PermissionStatusItem(
-                                    title = "Battery Optimization",
-                                    statusText = "Restricted (Tap to fix)",
-                                    isActive = false,
-                                    icon = Icons.Default.BatteryAlert,
-                                    onClick = { requestIgnoreBatteryOptimizations(context) }
-                                )
-                                first = false
-                            }
-
-                            if (hasNetworkIssue) {
-                                if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                                PermissionStatusItem(
-                                    title = "Network Access",
-                                    statusText = "No Connection",
-                                    isActive = false,
-                                    icon = Icons.Default.WifiOff,
-                                    onClick = { /* Check network settings */ }
-                                )
-                                first = false
-                            }
-
-                            if (needsInstallPermission) {
-                                if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                                PermissionStatusItem(
-                                    title = "Install APKs",
-                                    statusText = "Blocked (Tap to allow)",
-                                    isActive = false,
-                                    icon = Icons.Default.Error,
-                                    onClick = { openInstallUnknownAppsSettings(context) }
-                                )
-                            }
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(100.dp))
-            }
-
-            // DONATION BOTTOM SHEET
-            if (showDonationSheet) {
-                ModalBottomSheet(
-                    onDismissRequest = { showDonationSheet = false },
-                    sheetState = donationSheetState,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    dragHandle = { BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)) }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp)
-                            .padding(bottom = 32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = Constants.DONATION_TITLE,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Text(
-                            text = Constants.DONATION_DESC,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
-                        // QR CODE IMAGE (updated to look for "qr")
-                        Surface(
-                            modifier = Modifier
-                                .size(240.dp)
-                                .shadow(8.dp, RoundedCornerShape(24.dp)),
-                            shape = RoundedCornerShape(24.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-                        ) {
-                            val qrResId = context.resources.getIdentifier("qr", "drawable", context.packageName)
-                            if (qrResId != 0) {
-                                Image(
-                                    painter = painterResource(id = qrResId),
-                                    contentDescription = "Bank QR Code",
-                                    modifier = Modifier.fillMaxSize().padding(16.dp),
-                                    contentScale = ContentScale.Fit
-                                )
-                            } else {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                                        Text("QR image not found (qr.jpg)", style = MaterialTheme.typography.labelSmall)
-                                    }
-                                }
-                            }
-                        }
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
-                        Button(
-                            onClick = { showDonationSheet = false },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Text("Done")
-                        }
-                    }
-                }
-            }
-
-            // FLOATING SAVE/CANCEL BAR
-            AnimatedVisibility(
-                visible = hasChanges,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp)
-            ) {
-                Surface(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .fillMaxWidth()
-                        .height(64.dp),
-                    shape = RoundedCornerShape(32.dp),
-                    color = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
-                    tonalElevation = 8.dp,
-                    shadowElevation = 8.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        TextButton(
-                            onClick = {
-                                pendingThemeMode = themeMode
-                                pendingHapticEnabled = hapticEnabled
-                                pendingSound = savedSound
-                                pendingBossNotif = savedBossNotif
-                                pendingEventNotif = savedEventNotif
-                            },
-                            modifier = Modifier.weight(1f).fillMaxHeight()
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Cancel")
-                        }
-
-                        VerticalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 1.dp)
-
-                        TextButton(
-                            onClick = {
-                                preferenceManager.setThemeMode(pendingThemeMode)
-                                preferenceManager.setHapticFeedbackEnabled(pendingHapticEnabled)
-                                preferenceManager.setNotificationSound(pendingSound)
-                                preferenceManager.setBossNotificationsEnabled(pendingBossNotif)
-                                preferenceManager.setEventNotificationsEnabled(pendingEventNotif)
-                                Toast.makeText(context, "Settings saved", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Save Changes", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SoundSelectionItem(
-    selectedSound: String,
-    onSoundSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    
-    val sounds = remember(selectedSound) {
-        listOf(
-            "terran_launch" to "Terran Launch",
-            "siege_tank" to "Siege Tank",
-            "marine_want" to "Marine Want",
-            "terran_addon" to "Terran Addon",
-            "terran_attack" to "Terran Attack",
-            "goliath_target" to "Goliath Target",
-            "science_vessel" to "Science Vessel",
-            "ghost_reporting" to "Ghost Reporting",
-            "terran_detected" to "Terran Detected",
-            "ghost_exterminator" to "Ghost Exterminator"
-        )
-        .sortedBy { it.second }
-        .let { sortedList ->
-            val (selected, rest) = sortedList.partition { it.first == selectedSound }
-            selected + rest
-        }
-    }
-
-    val currentDisplayName = sounds.find { it.first == selectedSound }?.second ?: selectedSound
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Notification Sound",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor()
-                    .clip(RoundedCornerShape(16.dp)),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = if (expanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
                             Icon(
-                                Icons.Default.MusicNote,
+                                imageVector = Icons.Default.QrCode2,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                text = currentDisplayName,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Tap to change",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                modifier = Modifier.size(32.dp)
                             )
                         }
                     }
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                }
-            }
 
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surface)
-                    .exposedDropdownSize()
-                    .padding(vertical = 4.dp)
-            ) {
-                sounds.forEach { (id, name) ->
-                    val isSelected = id == selectedSound
-                    DropdownMenuItem(
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                    // 5. PERMISSIONS (Dynamic)
+                    val needsNotificationPermission = !areNotificationsEnabled
+                    val needsAlarmPermission = !canScheduleExactAlarms
+                    val needsBatteryPermission = !isIgnoringBatteryOptimizations
+                    val needsInstallPermission = !canInstallPackages
+                    val hasNetworkIssue = !isNetworkAvailable
+
+                    val showPermissionsSection = needsNotificationPermission ||
+                                               needsAlarmPermission ||
+                                               needsBatteryPermission ||
+                                               needsInstallPermission ||
+                                               hasNetworkIssue
+
+                    if (showPermissionsSection) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        SettingsCard(
+                            title = "Permissions",
+                            icon = Icons.Default.SettingsSuggest
+                        ) {
+                            Column {
+                                var first = true
+
+                                if (needsNotificationPermission) {
+                                    PermissionStatusItem(
+                                        title = "Push Notifications",
+                                        statusText = "Denied (Tap to allow)",
+                                        isActive = false,
+                                        icon = Icons.Default.NotificationsOff,
+                                        onClick = { openNotificationSettings(context) }
+                                    )
+                                    first = false
+                                }
+
+                                if (needsAlarmPermission) {
+                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                                    PermissionStatusItem(
+                                        title = "Exact Alarm Timing",
+                                        statusText = "Delayed (Tap to allow)",
+                                        isActive = false,
+                                        icon = Icons.Default.TimerOff,
+                                        onClick = { openAlarmSettings(context) }
+                                    )
+                                    first = false
+                                }
+
+                                if (needsBatteryPermission) {
+                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                                    PermissionStatusItem(
+                                        title = "Battery Optimization",
+                                        statusText = "Restricted (Tap to fix)",
+                                        isActive = false,
+                                        icon = Icons.Default.BatteryAlert,
+                                        onClick = { requestIgnoreBatteryOptimizations(context) }
+                                    )
+                                    first = false
+                                }
+
+                                if (hasNetworkIssue) {
+                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                                    PermissionStatusItem(
+                                        title = "Network Access",
+                                        statusText = "No Connection",
+                                        isActive = false,
+                                        icon = Icons.Default.WifiOff,
+                                        onClick = { /* Check network settings */ }
+                                    )
+                                    first = false
+                                }
+
+                                if (needsInstallPermission) {
+                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                                    PermissionStatusItem(
+                                        title = "Install APKs",
+                                        statusText = "Blocked (Tap to allow)",
+                                        isActive = false,
+                                        icon = Icons.Default.Error,
+                                        onClick = { openInstallUnknownAppsSettings(context) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(100.dp))
+                }
+
+                // Glassy Save Success Notification (Top)
+                AnimatedVisibility(
+                    visible = showSaveSuccess,
+                    enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 40.dp)
+                ) {
+                    ElysiumGlassCard(
+                        modifier = Modifier
+                            .padding(horizontal = 32.dp)
+                            .widthIn(max = 300.dp),
+                        statusColor = Constants.COLOR_SUCCESS,
+                        cornerRadius = 20.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Constants.COLOR_SUCCESS,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = "Settings Saved",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                // DONATION BOTTOM SHEET
+                if (showDonationSheet) {
+                    ModalBottomSheet(
+                        onDismissRequest = { showDonationSheet = false },
+                        sheetState = donationSheetState,
+                        containerColor = Color.Transparent,
+                        dragHandle = null,
+                        scrimColor = Color.Black.copy(alpha = 0.4f)
+                    ) {
+                        ElysiumGlassCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .padding(bottom = 32.dp),
+                            cornerRadius = 28.dp
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(40.dp, 4.dp)
                                         .clip(CircleShape)
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (isSelected) Icons.Default.VolumeUp else Icons.Default.VolumeMute,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
                                 )
-                                if (isSelected) {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.primary
+                                
+                                Spacer(modifier = Modifier.height(24.dp))
+                                
+                                Text(
+                                    text = Constants.DONATION_TITLE,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                Text(
+                                    text = Constants.DONATION_DESC,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                
+                                Spacer(modifier = Modifier.height(24.dp))
+                                
+                                // QR CODE IMAGE
+                                Surface(
+                                    modifier = Modifier
+                                        .size(240.dp)
+                                        .shadow(8.dp, RoundedCornerShape(24.dp)),
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = Color.White,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                                ) {
+                                    val qrResId = context.resources.getIdentifier(Constants.RES_QR_DONATION, "drawable", context.packageName)
+                                    if (qrResId != 0) {
+                                        Image(
+                                            painter = painterResource(id = qrResId),
+                                            contentDescription = "Bank QR Code",
+                                            modifier = Modifier.fillMaxSize().padding(16.dp),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                    } else {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                                Text("QR image not found", style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                Spacer(modifier = Modifier.height(24.dp))
+                                
+                                Button(
+                                    onClick = { showDonationSheet = false },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
                                     )
+                                ) {
+                                    Text("Done", fontWeight = FontWeight.Bold)
                                 }
                             }
-                        },
-                        onClick = {
-                            onSoundSelected(id)
-                            expanded = false
-                        },
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    )
+                        }
+                    }
+                }
+
+                // FLOATING SAVE/CANCEL BAR
+                AnimatedVisibility(
+                    visible = hasChanges,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .fillMaxWidth()
+                            .height(64.dp)
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(32.dp)
+                            ),
+                        shape = RoundedCornerShape(32.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        tonalElevation = 8.dp,
+                        shadowElevation = 8.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    pendingThemeMode = themeMode
+                                    pendingHapticEnabled = hapticEnabled
+                                    pendingSound = savedSound
+                                    pendingBossNotif = savedBossNotif
+                                    pendingEventNotif = savedEventNotif
+                                },
+                                modifier = Modifier.weight(1f).fillMaxHeight()
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Cancel")
+                            }
+
+                            VerticalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+
+                            TextButton(
+                                onClick = {
+                                    preferenceManager.setThemeMode(pendingThemeMode)
+                                    preferenceManager.setHapticFeedbackEnabled(pendingHapticEnabled)
+                                    preferenceManager.setNotificationSound(pendingSound)
+                                    preferenceManager.setBossNotificationsEnabled(pendingBossNotif)
+                                    preferenceManager.setEventNotificationsEnabled(pendingEventNotif)
+                                    showSaveSuccess = true
+                                },
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Save Changes", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -746,37 +696,6 @@ private fun playSoundPreview(context: Context, soundName: String) {
         }
     } catch (e: Exception) {
         e.printStackTrace()
-    }
-}
-
-@Composable
-private fun PermissionStatusItem(
-    title: String,
-    statusText: String,
-    isActive: Boolean,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-            )
-        }
-        IconButton(onClick = onClick) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-            )
-        }
     }
 }
 
@@ -848,70 +767,4 @@ private fun openNotificationSettings(context: Context) {
         }
     }
     context.startActivity(intent)
-}
-
-@Composable
-fun SettingsCard(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    content: @Composable () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
-                Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
-            content()
-        }
-    }
-}
-
-@Composable
-fun NotificationToggle(
-    title: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
-fun ThemeOptionButton(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-        ),
-        border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)) else null,
-        contentPadding = PaddingValues(vertical = 4.dp)
-    ) {
-        Text(text = text, style = MaterialTheme.typography.labelSmall, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium)
-    }
 }

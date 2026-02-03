@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 12,
-  "latestVersionName": "1.0.11",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.11/app-debug.apk",
-  "releaseNotes": "- Centered all page headers and subtitles for a consistent UI.\n- Integrated GCASH Donation feature directly into Settings with full-height QR display.\n- Fully centralized all project constants (titles, colors, logic) in Constants.kt.\n- Synced Boss and Event timer behaviors and Light/Dark mode transitions.\n- Optimized recomposition for better scrolling performance.",
+  "latestVersionCode": 13,
+  "latestVersionName": "1.0.12",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.12/app-debug.apk",
+  "releaseNotes": "- Premium Glassy UI: Refined filter chips, toggles, and buttons with translucent textures and gradient borders.\n- ELYSIUM Highlighting: World Boss rotations for ELYSIUM are now visually popped out with a unique guild glow.\n- Theme-Aware Notifications: Replaced system toasts with custom glassy top-notifications for a unified look.\n- UI Optimization: Improved badge layouts to prevent text wrapping on smaller screens.\n- Centralized Settings Architecture: Improved performance and maintainability by decoupling settings components.",
   "isForceUpdate": false
 }

@@ -1,6 +1,11 @@
 package com.elysium.guild.utils
 
 import androidx.compose.ui.graphics.Color
+import com.elysium.guild.models.EventType
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import java.util.Locale
 
 object Constants {
     
@@ -105,6 +110,53 @@ object UIUtils {
             isReady -> Constants.COLOR_READY
             isSoon -> Constants.COLOR_SOON
             else -> if (isDark) Constants.COLOR_TRACKING else Constants.COLOR_TRACKING_LIGHT
+        }
+    }
+
+    fun getEventIcon(eventType: EventType): String {
+        return when (eventType) {
+            EventType.WORLD_BOSS -> "🐉"
+            EventType.GUILD_DUNGEON -> "🏰"
+            EventType.ARENA_BATTLE -> "⚔️"
+            EventType.GUILD_BOSS -> "👹"
+            EventType.GVG -> "⚔️"
+            EventType.SPECIAL_EVENT -> "🎯"
+        }
+    }
+
+    fun formatEventTime(timeString: String): String {
+        return try {
+            val instant = Instant.parse(timeString)
+            val localDateTime = instant.toLocalDateTime(TimeZone.of("Asia/Manila"))
+            val day = localDateTime.dayOfMonth
+            val month = localDateTime.month.name.substring(0, 3).lowercase().replaceFirstChar { it.uppercase() }
+            val year = localDateTime.year
+            val hour = if (localDateTime.hour % 12 == 0) 12 else localDateTime.hour % 12
+            val minute = String.format("%02d", localDateTime.minute)
+            val amPm = if (localDateTime.hour < 12) "AM" else "PM"
+
+            "$month $day, $year $hour:$minute $amPm"
+        } catch (e: Exception) {
+            "Time TBD"
+        }
+    }
+
+    fun calculateCountdown(startTime: String, now: Instant): String {
+        return try {
+            val eventInstant = Instant.parse(startTime)
+            val duration = eventInstant - now
+
+            if (duration.isNegative()) return ""
+
+            duration.toComponents { days, hours, minutes, seconds, _ ->
+                when {
+                    days > 0 -> "${days}d ${hours}h ${minutes}m"
+                    hours > 0 -> "${hours}h ${minutes}m ${seconds}s"
+                    else -> "${minutes}m ${seconds}s"
+                }
+            }
+        } catch (e: Exception) {
+            ""
         }
     }
 }

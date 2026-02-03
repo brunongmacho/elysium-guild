@@ -1,20 +1,29 @@
 package com.elysium.guild.ui.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.elysium.guild.utils.Constants
 
 @Composable
 fun MemberAvatarCard(
@@ -22,23 +31,7 @@ fun MemberAvatarCard(
     rank: String,
     avatarUrl: String?
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.2f),
-                        Color.White.copy(alpha = 0.05f)
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
-            ),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
-        tonalElevation = 4.dp
-    ) {
+    ElysiumGlassCard {
         Column(
             modifier = Modifier
                 .padding(24.dp)
@@ -75,6 +68,342 @@ fun MemberAvatarCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsCard(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    content: @Composable () -> Unit
+) {
+    ElysiumGlassCard(modifier = Modifier.padding(vertical = 4.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+fun NotificationToggle(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val isDark = isSystemInDarkTheme()
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        // Glassy Custom Switch
+        Surface(
+            modifier = Modifier
+                .size(48.dp, 28.dp)
+                .clip(CircleShape),
+            color = if (checked) primaryColor.copy(alpha = if (isDark) 0.25f else 0.15f)
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+            border = BorderStroke(
+                width = 1.dp,
+                brush = if (checked) {
+                    Brush.linearGradient(colors = listOf(primaryColor.copy(alpha = 0.8f), primaryColor.copy(alpha = 0.2f)))
+                } else {
+                    Brush.linearGradient(colors = listOf(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)))
+                }
+            )
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                val alignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart
+                Box(
+                    modifier = Modifier
+                        .padding(4.dp)
+                        .size(20.dp)
+                        .align(alignment)
+                        .clip(CircleShape)
+                        .background(
+                            if (checked) primaryColor
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                        )
+                        .shadow(if (checked) 4.dp else 0.dp, CircleShape)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ThemeOptionButton(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(40.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) primaryColor.copy(alpha = if (isDark) 0.25f else 0.15f)
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+        border = BorderStroke(
+            width = 1.dp,
+            brush = if (isSelected) {
+                Brush.linearGradient(
+                    colors = listOf(
+                        primaryColor.copy(alpha = 0.8f),
+                        primaryColor.copy(alpha = 0.2f)
+                    )
+                )
+            } else {
+                Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                    )
+                )
+            }
+        )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                color = if (isSelected) primaryColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SoundSelectionItem(
+    selectedSound: String,
+    onSoundSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val isDark = isSystemInDarkTheme()
+
+    val sounds = remember(selectedSound) {
+        listOf(
+            "terran_launch" to "Terran Launch",
+            "siege_tank" to "Siege Tank",
+            "marine_want" to "Marine Want",
+            "terran_addon" to "Terran Addon",
+            "terran_attack" to "Terran Attack",
+            "goliath_target" to "Goliath Target",
+            "science_vessel" to "Science Vessel",
+            "ghost_reporting" to "Ghost Reporting",
+            "terran_detected" to "Terran Detected",
+            "ghost_exterminator" to "Ghost Exterminator"
+        )
+        .sortedBy { it.second }
+        .let { sortedList ->
+            val (selected, rest) = sortedList.partition { it.first == selectedSound }
+            selected + rest
+        }
+    }
+
+    val currentDisplayName = sounds.find { it.first == selectedSound }?.second ?: selectedSound
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Notification Sound",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = it },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                border = BorderStroke(
+                    width = 1.dp,
+                    brush = if (expanded) {
+                        Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)))
+                    } else {
+                        Brush.linearGradient(listOf(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)))
+                    }
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = currentDisplayName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Tap to change",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                    Icon(
+                        if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                    .exposedDropdownSize()
+            ) {
+                sounds.forEach { (id, name) ->
+                    val isSelected = id == selectedSound
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isSelected) Icons.Default.VolumeUp else Icons.Default.VolumeMute,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    text = name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                                if (isSelected) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            onSoundSelected(id)
+                            expanded = false
+                        },
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PermissionStatusItem(
+    title: String,
+    statusText: String,
+    isActive: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onClick() }.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isActive) Color(0xFF4CAF50).copy(alpha = 0.1f)
+                    else MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -145,21 +474,8 @@ private fun StatCard(
     value: String,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    ElysiumGlassCard(
         modifier = modifier
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.15f),
-                        Color.White.copy(alpha = 0.05f)
-                    )
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        tonalElevation = 2.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
