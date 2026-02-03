@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 14,
-  "latestVersionName": "1.0.13",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.13/app-debug.apk",
-  "releaseNotes": "- Premium Glassy UI: Refined filter chips, toggles, and buttons with translucent textures and gradient borders.\n- ELYSIUM Highlighting: World Boss rotations for ELYSIUM are now visually popped out with a unique guild glow.\n- Theme-Aware Notifications: Replaced system toasts with custom glassy top-notifications for a unified look.\n- UI Optimization: Improved badge layouts to prevent text wrapping on smaller screens.\n- Centralized Settings Architecture: Improved performance and maintainability by decoupling settings components.",
+  "latestVersionCode": 15,
+  "latestVersionName": "1.0.14",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.14/app-debug.apk",
+  "releaseNotes": "- UI Stability: Fixed critical issue with settings toggles disappearing during interaction.\n- ELYSIUM Highlighting: World Boss rotations for ELYSIUM now feature a distinct primary glow and '(OUR TURN)' label.\n- Premium Glassy UI: Refined translucent textures and gradient borders across all chips, toggles, and buttons.\n- Theme-Aware Notifications: Integrated glassy top-notifications for a consistent feedback experience.\n- Badge Optimization: Improved layout logic to prevent text wrapping on smaller screens.",
   "isForceUpdate": false
 }
