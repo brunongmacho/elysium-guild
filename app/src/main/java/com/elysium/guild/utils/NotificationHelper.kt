@@ -82,7 +82,7 @@ class NotificationHelper @Inject constructor(
         }
         val pendingIntent: PendingIntent = PendingIntent.getActivity(
             context, bossName.hashCode(), intent,
-            PendingIntent.FLAG_IMMUTABLE or UpdateIntentFlags.getUpdateCurrentFlag()
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val soundName = preferenceManager.notificationSound.value
@@ -113,11 +113,5 @@ class NotificationHelper @Inject constructor(
         } catch (e: Exception) {
             Log.e("NotificationHelper", "Failed to show notification", e)
         }
-    }
-}
-
-object UpdateIntentFlags {
-    fun getUpdateCurrentFlag(): Int {
-        return PendingIntent.FLAG_UPDATE_CURRENT
     }
 }
