@@ -29,7 +29,7 @@ class BossTimersViewModel @Inject constructor(
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(BossTimersUiState(
-        notificationsEnabled = preferenceManager.bossNotificationsEnabled
+        notificationsEnabled = preferenceManager.bossNotificationsEnabled.value
     ))
     val uiState: StateFlow<BossTimersUiState> = _uiState.asStateFlow()
 
@@ -48,7 +48,7 @@ class BossTimersViewModel @Inject constructor(
         startAutoRefresh()
     }
 
-    fun isHapticEnabled(): Boolean = preferenceManager.hapticFeedbackEnabled
+    fun isHapticEnabled(): Boolean = preferenceManager.hapticEnabled.value
 
     private fun startTicker() {
         viewModelScope.launch {

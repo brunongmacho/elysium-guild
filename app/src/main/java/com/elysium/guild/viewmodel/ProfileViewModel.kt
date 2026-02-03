@@ -17,13 +17,16 @@ class ProfileViewModel @Inject constructor(
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val updateState: StateFlow<UpdateState> = _updateState
 
-    fun checkForUpdates() {
+    fun checkForUpdates(silent: Boolean = false) {
         viewModelScope.launch {
-            _updateState.value = UpdateState.Checking
+            if (!silent) {
+                _updateState.value = UpdateState.Checking
+            }
+            
             val updateInfo = updateManager.checkForUpdates()
             if (updateInfo != null) {
                 _updateState.value = UpdateState.UpdateAvailable(updateInfo)
-            } else {
+            } else if (!silent) {
                 _updateState.value = UpdateState.UpToDate
             }
         }

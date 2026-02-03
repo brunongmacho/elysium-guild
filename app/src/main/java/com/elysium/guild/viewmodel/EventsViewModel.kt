@@ -23,7 +23,7 @@ class EventsViewModel @Inject constructor(
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(EventsUiState(
-        notificationsEnabled = preferenceManager.eventNotificationsEnabled
+        notificationsEnabled = preferenceManager.eventNotificationsEnabled.value
     ))
     val uiState: StateFlow<EventsUiState> = _uiState.asStateFlow()
 
@@ -80,7 +80,7 @@ class EventsViewModel @Inject constructor(
 
     fun toggleNotifications() {
         val newValue = !_uiState.value.notificationsEnabled
-        preferenceManager.eventNotificationsEnabled = newValue
+        preferenceManager.setEventNotificationsEnabled(newValue)
         _uiState.value = _uiState.value.copy(notificationsEnabled = newValue)
     }
     

@@ -33,7 +33,7 @@ class BossNotificationWorker @AssistedInject constructor(
             val now = Clock.System.now()
 
             // 1. Handle Boss Notifications (if enabled)
-            if (preferenceManager.bossNotificationsEnabled) {
+            if (preferenceManager.bossNotificationsEnabled.value) {
                 val bosses = bossRepository.getBossTimers()
                 bosses.forEach { boss ->
                     val spawnTimeStr = boss.nextSpawnTime ?: return@forEach
@@ -45,7 +45,7 @@ class BossNotificationWorker @AssistedInject constructor(
             }
 
             // 2. Handle Guild Event Notifications (if enabled)
-            if (preferenceManager.eventNotificationsEnabled) {
+            if (preferenceManager.eventNotificationsEnabled.value) {
                 val events = eventsRepository.getEvents()
                 events.forEach { event ->
                     val startTimeStr = event.startTime ?: return@forEach

@@ -21,24 +21,38 @@ class PreferenceManager @Inject constructor(
     private val _hapticEnabled = MutableStateFlow(prefs.getBoolean("haptic_feedback_enabled", true))
     val hapticEnabled: StateFlow<Boolean> = _hapticEnabled.asStateFlow()
 
-    var bossNotificationsEnabled: Boolean
-        get() = prefs.getBoolean(Constants.KEY_BOSS_SPAWN_ALERTS, true)
-        set(value) = prefs.edit().putBoolean(Constants.KEY_BOSS_SPAWN_ALERTS, value).apply()
+    private val _notificationSound = MutableStateFlow(prefs.getString(Constants.KEY_NOTIFICATION_SOUND, "terran_launch") ?: "terran_launch")
+    val notificationSound: StateFlow<String> = _notificationSound.asStateFlow()
 
-    var eventNotificationsEnabled: Boolean
-        get() = prefs.getBoolean(Constants.KEY_EVENT_REMINDERS, true)
-        set(value) = prefs.edit().putBoolean(Constants.KEY_EVENT_REMINDERS, value).apply()
+    private val _bossNotificationsEnabled = MutableStateFlow(prefs.getBoolean(Constants.KEY_BOSS_SPAWN_ALERTS, true))
+    val bossNotificationsEnabled: StateFlow<Boolean> = _bossNotificationsEnabled.asStateFlow()
 
-    var hapticFeedbackEnabled: Boolean
-        get() = prefs.getBoolean("haptic_feedback_enabled", true)
-        set(value) {
-            prefs.edit().putBoolean("haptic_feedback_enabled", value).apply()
-            _hapticEnabled.value = value
-        }
+    private val _eventNotificationsEnabled = MutableStateFlow(prefs.getBoolean(Constants.KEY_EVENT_REMINDERS, true))
+    val eventNotificationsEnabled: StateFlow<Boolean> = _eventNotificationsEnabled.asStateFlow()
 
     var bossNotificationOffset: Int
         get() = prefs.getInt(Constants.KEY_BOSS_NOTIFICATION_OFFSET, 10)
         set(value) = prefs.edit().putInt(Constants.KEY_BOSS_NOTIFICATION_OFFSET, value).apply()
+
+    fun setBossNotificationsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.KEY_BOSS_SPAWN_ALERTS, enabled).apply()
+        _bossNotificationsEnabled.value = enabled
+    }
+
+    fun setEventNotificationsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.KEY_EVENT_REMINDERS, enabled).apply()
+        _eventNotificationsEnabled.value = enabled
+    }
+
+    fun setHapticFeedbackEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("haptic_feedback_enabled", enabled).apply()
+        _hapticEnabled.value = enabled
+    }
+
+    fun setNotificationSound(sound: String) {
+        prefs.edit().putString(Constants.KEY_NOTIFICATION_SOUND, sound).apply()
+        _notificationSound.value = sound
+    }
 
     fun setThemeMode(mode: Int) {
         prefs.edit().putInt(Constants.KEY_THEME_MODE, mode).apply()

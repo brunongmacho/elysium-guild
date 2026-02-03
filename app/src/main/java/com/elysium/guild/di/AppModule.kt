@@ -2,11 +2,9 @@ package com.elysium.guild.di
 
 import android.content.Context
 import androidx.room.Room
-import com.elysium.guild.database.BossTimerDao
 import com.elysium.guild.database.ElysiumDatabase
 import com.elysium.guild.network.ElysiumApiService
 import com.elysium.guild.network.UpdateApiService
-import com.elysium.guild.repository.BossTimersRepository
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.NotificationHelper
 import com.elysium.guild.utils.PreferenceManager
@@ -114,8 +112,11 @@ object UtilsModule {
     
     @Provides
     @Singleton
-    fun provideNotificationHelper(@ApplicationContext context: Context): NotificationHelper {
-        return NotificationHelper(context)
+    fun provideNotificationHelper(
+        @ApplicationContext context: Context,
+        preferenceManager: PreferenceManager
+    ): NotificationHelper {
+        return NotificationHelper(context, preferenceManager)
     }
 
     @Provides

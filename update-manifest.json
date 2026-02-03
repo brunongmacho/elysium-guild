@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 9,
-  "latestVersionName": "1.0.8",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.8/app-debug.apk",
-  "releaseNotes": "- Auto-update test version 1.0.8.\n- Verifying permanent signature key logic.",
+  "latestVersionCode": 10,
+  "latestVersionName": "1.0.9",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.0.9/app-debug.apk",
+  "releaseNotes": "- Fixed build error with 'silent' parameter.\n- Updated version to 1.0.9 for auto-update testing.",
   "isForceUpdate": false
 }
