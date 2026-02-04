@@ -45,7 +45,8 @@
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.ElysiumGuild.Splash"
-            android:screenOrientation="portrait">
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -62,6 +63,7 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Correctly disable default WorkManager initialization -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
@@ -95,7 +97,10 @@
             android:name=".widget.BossBubbleService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="specialUse" />
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_TYPE"
+                android:value="Overlay service for real-time game boss timers and guild event tracking."/>
+        </service>
 
     </application>
 </manifest>

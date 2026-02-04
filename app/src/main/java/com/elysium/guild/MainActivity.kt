@@ -13,12 +13,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -51,46 +49,43 @@ class MainActivity : ComponentActivity() {
     ) { isGranted: Boolean ->
         if (isGranted) {
             Toast.makeText(this, "Notifications enabled", Toast.LENGTH_SHORT).show()
-            // Schedule immediately once permission is granted
             BossNotificationWorker.schedule(this)
         } else {
             Toast.makeText(this, "Notification permission denied", Toast.LENGTH_LONG).show()
         }
     }
 
+    private val overlayPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "Overlay permission granted", Toast.LENGTH_SHORT).show()
+            // The flow observer will catch the permission change and start the service if enabled
+        } else {
+            Toast.makeText(this, "Overlay permission denied", Toast.LENGTH_LONG).show()
+            lifecycleScope.launch {
+                preferenceManager.setFloatingBubbleEnabled(false)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Install splash screen
         installSplashScreen()
-        
-        // Enable edge-to-edge display (replaces deprecated systemUiController)
         enableEdgeToEdge()
-        
         super.onCreate(savedInstanceState)
         
-        // Request Notification Permission for Android 13+
         askNotificationPermission()
-        
-        // Schedule Boss Notifications (it will skip if already scheduled)
         BossNotificationWorker.schedule(this)
-
-        // Silent check for updates at startup
         profileViewModel.checkForUpdates(silent = true)
 
-        // Observe Floating Bubble preference
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 preferenceManager.floatingBubbleEnabled.collectLatest { enabled ->
                     if (enabled) {
                         if (Settings.canDrawOverlays(this@MainActivity)) {
-                            val serviceIntent = Intent(this@MainActivity, BossBubbleService::class.java)
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                startForegroundService(serviceIntent)
-                            } else {
-                                startService(serviceIntent)
-                            }
+                            startBubbleService()
                         } else {
-                            // If enabled but no permission, update preference to false
-                            preferenceManager.setFloatingBubbleEnabled(false)
+                            requestOverlayPermission()
                         }
                     } else {
                         stopService(Intent(this@MainActivity, BossBubbleService::class.java))
@@ -109,65 +104,92 @@ class MainActivity : ComponentActivity() {
                         preferenceManager = preferenceManager
                     )
 
-                    // Handle Global Update UI Prompts
                     if (updateState is UpdateState.UpdateAvailable) {
                         val state = updateState as UpdateState.UpdateAvailable
-                        AlertDialog(
-                            onDismissRequest = { profileViewModel.resetUpdateState() },
-                            title = { Text("Update Available") },
-                            text = {
-                                Column {
-                                    Text("A new version (${state.updateInfo.latestVersionName}) is available.")
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(state.updateInfo.releaseNotes, style = MaterialTheme.typography.bodySmall)
-                                    
-                                    val canInstall = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                        packageManager.canRequestPackageInstalls()
-                                    } else true
-
-                                    if (!canInstall) {
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Text(
-                                            "Note: You need to allow 'Install from Unknown Sources' in settings for the update to run.",
-                                            color = MaterialTheme.colorScheme.error,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                    }
-                                }
-                            },
-                            confirmButton = {
-                                Button(onClick = { profileViewModel.downloadAndInstall(state.updateInfo) }) {
-                                    Text("Update Now")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { profileViewModel.resetUpdateState() }) {
-                                    Text("Later")
-                                }
-                            }
-                        )
+                        UpdateDialog(state)
                     }
                 }
             }
         }
     }
 
+    @Composable
+    private fun UpdateDialog(state: UpdateState.UpdateAvailable) {
+        AlertDialog(
+            onDismissRequest = { profileViewModel.resetUpdateState() },
+            title = { Text("Update Available") },
+            text = {
+                Column {
+                    Text("A new version (${state.updateInfo.latestVersionName}) is available.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(state.updateInfo.releaseNotes, style = MaterialTheme.typography.bodySmall)
+                    
+                    val canInstall = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        packageManager.canRequestPackageInstalls()
+                    } else true
+
+                    if (!canInstall) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Note: You need to allow 'Install from Unknown Sources' in settings for the update to run.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { profileViewModel.downloadAndInstall(state.updateInfo) }) {
+                    Text("Update Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { profileViewModel.resetUpdateState() }) {
+                    Text("Later")
+                }
+            }
+        )
+    }
+
+    private fun startBubbleService() {
+        try {
+            val serviceIntent = Intent(this, BossBubbleService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to start bubble service", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun requestOverlayPermission() {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:$packageName")
+        )
+        overlayPermissionLauncher.launch(intent)
+    }
+
     override fun onResume() {
         super.onResume()
-        // Hide bubble when app is open
-        val intent = Intent(this, BossBubbleService::class.java).apply {
-            action = BossBubbleService.ACTION_HIDE
+        if (Settings.canDrawOverlays(this)) {
+            val intent = Intent(this, BossBubbleService::class.java).apply {
+                action = BossBubbleService.ACTION_HIDE
+            }
+            try { startService(intent) } catch (e: Exception) {}
         }
-        startService(intent)
     }
 
     override fun onPause() {
         super.onPause()
-        // Show bubble when app is closed or backgrounded
-        val intent = Intent(this, BossBubbleService::class.java).apply {
-            action = BossBubbleService.ACTION_SHOW
+        if (Settings.canDrawOverlays(this)) {
+            val intent = Intent(this, BossBubbleService::class.java).apply {
+                action = BossBubbleService.ACTION_SHOW
+            }
+            try { startService(intent) } catch (e: Exception) {}
         }
-        startService(intent)
     }
 
     private fun askNotificationPermission() {
@@ -178,9 +200,5 @@ class MainActivity : ComponentActivity() {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
     }
 }

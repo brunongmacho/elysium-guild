@@ -23,11 +23,9 @@ class NotificationHelper @Inject constructor(
 ) {
 
     companion object {
-        // Using a base ID to create unique channels per sound
         private const val BASE_CHANNEL_ID = "boss_event_alerts"
     }
 
-    // Re-create channel whenever a new helper is injected or sound preference changes.
     init {
         createNotificationChannel()
     }
@@ -46,15 +44,15 @@ class NotificationHelper @Inject constructor(
             val descriptionText = "Notifications for boss spawns and guild events."
             val importance = NotificationManager.IMPORTANCE_HIGH
 
-            // Correctly get the resource ID for the selected sound
-            val resId = context.resources.getIdentifier(soundName, "raw", context.packageName)
-            
-            // Correctly form the sound URI, with a reliable fallback to the default sound's ID.
-            val soundUri = if (resId != 0) {
-                Uri.parse("android.resource://${context.packageName}/$resId")
-            } else {
-                Uri.parse("android.resource://${context.packageName}/${R.raw.terran_launch}")
+            // Robust sound resource handling
+            val resId = try {
+                val id = context.resources.getIdentifier(soundName, "raw", context.packageName)
+                if (id != 0) id else R.raw.terran_launch
+            } catch (e: Exception) {
+                R.raw.terran_launch
             }
+            
+            val soundUri = Uri.parse("android.resource://${context.packageName}/$resId")
 
             val audioAttributes = AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -65,17 +63,19 @@ class NotificationHelper @Inject constructor(
                 description = descriptionText
                 enableVibration(true)
                 setShowBadge(true)
-                setSound(soundUri, audioAttributes)
+                try {
+                    setSound(soundUri, audioAttributes)
+                } catch (e: Exception) {
+                    Log.e("NotificationHelper", "Failed to set sound on channel: ${e.message}")
+                }
             }
 
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
-            Log.d("NotificationHelper", "Notification channel '$channelId' created with sound '$soundUri'")
         }
     }
 
     fun showBossNotification(bossName: String, minutesRemaining: Int) {
-        // This function is called when the sound preference changes, ensuring the channel is up-to-date.
         createNotificationChannel()
         
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -92,8 +92,6 @@ class NotificationHelper @Inject constructor(
         val title = "$bossName in $minutesRemaining mins!"
         val message = "Prepare for the kill! The boss spawns in $minutesRemaining minutes."
 
-        // The sound is now set on the CHANNEL, not on the builder.
-        // This is the correct modern approach.
         val builder = NotificationCompat.Builder(context, getChannelIdForCurrentSound())
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
@@ -102,18 +100,14 @@ class NotificationHelper @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            // DO NOT set sound here; it's handled by the channel.
-            // .setSound(soundUri) 
 
         try {
             val notificationManager = NotificationManagerCompat.from(context)
-            // The ID should be unique per notification to avoid them overwriting each other.
             notificationManager.notify(bossName.hashCode(), builder.build())
-            Log.d("NotificationHelper", "Notification sent for $bossName on channel ${getChannelIdForCurrentSound()}")
         } catch (e: SecurityException) {
-            Log.e("NotificationHelper", "Failed to show notification due to permission issue.", e)
+            Log.e("NotificationHelper", "SecurityException: Notification permission may have been revoked.", e)
         } catch (e: Exception) {
-            Log.e("NotificationHelper", "Failed to show notification", e)
+            Log.e("NotificationHelper", "Failed to show notification: ${e.message}")
         }
     }
 }

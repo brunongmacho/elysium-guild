@@ -19,11 +19,14 @@ import android.graphics.Point
 import android.graphics.PointF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.IBinder
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.StyleSpan
+import android.util.Log
 import android.util.TypedValue
 import android.view.*
 import android.view.animation.AccelerateInterpolator
@@ -92,6 +95,7 @@ class BossBubbleService : Service() {
     companion object {
         const val ACTION_SHOW = "com.elysium.guild.SHOW_BUBBLE"
         const val ACTION_HIDE = "com.elysium.guild.HIDE_BUBBLE"
+        private const val TAG = "BossBubbleService"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -104,25 +108,29 @@ class BossBubbleService : Service() {
             }
             ACTION_HIDE -> hideFloatingView()
         }
-        return super.onStartCommand(intent, flags, startId)
+        return START_STICKY
     }
 
     override fun onCreate() {
         super.onCreate()
-        prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        updateScreenDimensions()
-        
-        lastStableX = prefs.getInt(Constants.KEY_BUBBLE_LAST_X, screenWidth)
-        lastStableY = prefs.getInt(Constants.KEY_BUBBLE_LAST_Y, dpToPx(Constants.BUBBLE_INITIAL_Y_DP))
-        
-        startForegroundService()
-        setupFloatingView()
-        setupCloseView()
-        observeDataChanges()
-        observeThemeChanges()
-        startPeriodicUpdates()
+        try {
+            prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+            windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+            updateScreenDimensions()
+            
+            lastStableX = prefs.getInt(Constants.KEY_BUBBLE_LAST_X, screenWidth)
+            lastStableY = prefs.getInt(Constants.KEY_BUBBLE_LAST_Y, dpToPx(Constants.BUBBLE_INITIAL_Y_DP))
+            
+            startForegroundService()
+            setupFloatingView()
+            setupCloseView()
+            observeDataChanges()
+            observeThemeChanges()
+            startPeriodicUpdates()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create service: ${e.message}")
+            stopSelf()
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -142,17 +150,21 @@ class BossBubbleService : Service() {
     }
 
     private fun updateScreenDimensions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            windowManager?.currentWindowMetrics?.bounds?.let { bounds ->
-                screenWidth = bounds.width()
-                screenHeight = bounds.height()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                windowManager?.currentWindowMetrics?.bounds?.let { bounds ->
+                    screenWidth = bounds.width()
+                    screenHeight = bounds.height()
+                }
+            } else {
+                val size = Point()
+                @Suppress("DEPRECATION")
+                windowManager?.defaultDisplay?.getRealSize(size)
+                screenWidth = size.x
+                screenHeight = size.y
             }
-        } else {
-            val size = Point()
-            @Suppress("DEPRECATION")
-            windowManager?.defaultDisplay?.getRealSize(size)
-            screenWidth = size.x
-            screenHeight = size.y
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating screen dimensions: ${e.message}")
         }
     }
 
@@ -164,7 +176,7 @@ class BossBubbleService : Service() {
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            manager?.createNotificationChannel(channel)
         }
 
         val notification: Notification = NotificationCompat.Builder(this, Constants.BUBBLE_NOTIFICATION_CHANNEL_ID)
@@ -172,6 +184,7 @@ class BossBubbleService : Service() {
             .setContentText("Boss & Event schedule overlay is running")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
 
         startForeground(Constants.BUBBLE_NOTIFICATION_ID, notification)
@@ -179,6 +192,8 @@ class BossBubbleService : Service() {
 
     private fun setupCloseView() {
         try {
+            if (closeView != null && closeView?.isAttachedToWindow == true) return
+
             closeView = LayoutInflater.from(this).inflate(R.layout.layout_bubble_close, null)
             
             val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -203,7 +218,9 @@ class BossBubbleService : Service() {
             
             closeView?.visibility = View.GONE
             windowManager?.addView(closeView, closeParams)
-        } catch (e: Exception) { }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up close view: ${e.message}")
+        }
     }
 
     private fun updateCloseViewPosition() {
@@ -217,6 +234,8 @@ class BossBubbleService : Service() {
     @SuppressLint("ClickableViewAccessibility")
     private fun setupFloatingView() {
         try {
+            if (floatingView != null && floatingView?.isAttachedToWindow == true) return
+
             floatingView = LayoutInflater.from(this).inflate(R.layout.layout_boss_bubble, null)
             bubbleIcon = floatingView?.findViewById(R.id.bubble_icon)
             timerLayout = floatingView?.findViewById(R.id.timer_list_container)
@@ -360,7 +379,9 @@ class BossBubbleService : Service() {
             floatingView?.post {
                 snapToEdge()
             }
-        } catch (e: Exception) { }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up floating view: ${e.message}")
+        }
     }
 
     private fun getCloseCenter(): Point {
@@ -509,7 +530,7 @@ class BossBubbleService : Service() {
             lastStableX = currentParams.x
             lastStableY = currentParams.y
             
-            val iconWidth = if (icon.width > 0) icon.width else dpToPx(55)
+            val iconWidth = if (icon.width > 0) icon.width else dpToPx(60)
             val targetXForIcon = screenWidth - iconWidth - dpToPx(16)
             val targetYForIcon = dpToPx(Constants.BUBBLE_EXPANDED_Y_DP)
             
@@ -566,7 +587,7 @@ class BossBubbleService : Service() {
             currentParams.width = WindowManager.LayoutParams.WRAP_CONTENT
             currentParams.height = WindowManager.LayoutParams.WRAP_CONTENT
             
-            val iconWidth = if (icon.width > 0) icon.width else dpToPx(55)
+            val iconWidth = if (icon.width > 0) icon.width else dpToPx(60)
             currentParams.x = screenWidth - iconWidth - dpToPx(16)
             currentParams.y = dpToPx(Constants.BUBBLE_EXPANDED_Y_DP)
             
@@ -679,11 +700,21 @@ class BossBubbleService : Service() {
     private fun fetchData() {
         serviceScope.launch {
             try {
+                if (!isNetworkAvailable()) return@launch
                 currentBosses = bossRepository.getBossTimers()
                 currentEvents = eventsRepository.getEvents()
                 updateTimerDisplay()
-            } catch (e: Exception) { }
+            } catch (e: Exception) { 
+                Log.e(TAG, "Error fetching data: ${e.message}")
+            }
         }
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return activeNetwork.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun startPeriodicUpdates() {

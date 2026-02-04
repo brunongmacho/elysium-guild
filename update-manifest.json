@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 18,
-  "latestVersionName": "1.1.2",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.2/app-debug.apk",
-  "releaseNotes": "- UI Optimization: Fixed bubble icon appearance to be perfectly circular across all device manufacturers using Material Shapeable components.\n- Crash Fix (Lenovo Legion Duel 2): Resolved unsafe WindowManager access during high-frequency configuration changes.\n- Device Stability: Modernized screen dimension detection for Android 11+ and improved view attachment validation.",
+  "latestVersionCode": 19,
+  "latestVersionName": "1.1.3",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.3/app-debug.apk",
+  "releaseNotes": "- UI Consistency: Finalized Shapeable circular bubble logic for all screen types.\n- Error Handling: Implemented silent failure for network repositories to prevent UI stutters.\n- Stability: Hardened service lifecycle against abrupt OS-level process terminations.",
   "isForceUpdate": false
 }

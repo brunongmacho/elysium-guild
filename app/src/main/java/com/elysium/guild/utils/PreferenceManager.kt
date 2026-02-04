@@ -33,37 +33,46 @@ class PreferenceManager @Inject constructor(
     private val _floatingBubbleEnabled = MutableStateFlow(prefs.getBoolean(Constants.KEY_FLOATING_BUBBLE_ENABLED, false))
     val floatingBubbleEnabled: StateFlow<Boolean> = _floatingBubbleEnabled.asStateFlow()
 
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
+        when (key) {
+            Constants.KEY_THEME_MODE -> _themeMode.value = sharedPrefs.getInt(key, Constants.THEME_SYSTEM)
+            "haptic_feedback_enabled" -> _hapticEnabled.value = sharedPrefs.getBoolean(key, true)
+            Constants.KEY_NOTIFICATION_SOUND -> _notificationSound.value = sharedPrefs.getString(key, "terran_launch") ?: "terran_launch"
+            Constants.KEY_BOSS_SPAWN_ALERTS -> _bossNotificationsEnabled.value = sharedPrefs.getBoolean(key, true)
+            Constants.KEY_EVENT_REMINDERS -> _eventNotificationsEnabled.value = sharedPrefs.getBoolean(key, true)
+            Constants.KEY_FLOATING_BUBBLE_ENABLED -> _floatingBubbleEnabled.value = sharedPrefs.getBoolean(key, false)
+        }
+    }
+
+    init {
+        prefs.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
     var bossNotificationOffset: Int
         get() = prefs.getInt(Constants.KEY_BOSS_NOTIFICATION_OFFSET, 10)
         set(value) = prefs.edit().putInt(Constants.KEY_BOSS_NOTIFICATION_OFFSET, value).apply()
 
     fun setBossNotificationsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(Constants.KEY_BOSS_SPAWN_ALERTS, enabled).apply()
-        _bossNotificationsEnabled.value = enabled
     }
 
     fun setEventNotificationsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(Constants.KEY_EVENT_REMINDERS, enabled).apply()
-        _eventNotificationsEnabled.value = enabled
     }
 
     fun setHapticFeedbackEnabled(enabled: Boolean) {
         prefs.edit().putBoolean("haptic_feedback_enabled", enabled).apply()
-        _hapticEnabled.value = enabled
     }
 
     fun setNotificationSound(sound: String) {
         prefs.edit().putString(Constants.KEY_NOTIFICATION_SOUND, sound).apply()
-        _notificationSound.value = sound
     }
 
     fun setThemeMode(mode: Int) {
         prefs.edit().putInt(Constants.KEY_THEME_MODE, mode).apply()
-        _themeMode.value = mode
     }
 
     fun setFloatingBubbleEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(Constants.KEY_FLOATING_BUBBLE_ENABLED, enabled).apply()
-        _floatingBubbleEnabled.value = enabled
     }
 }

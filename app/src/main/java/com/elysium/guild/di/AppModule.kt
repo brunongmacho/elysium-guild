@@ -33,7 +33,9 @@ object DatabaseModule {
             context,
             ElysiumDatabase::class.java,
             Constants.DATABASE_NAME
-        ).build()
+        )
+        .fallbackToDestructiveMigration() // Critical for stability when updating app versions
+        .build()
     }
 
     @Provides

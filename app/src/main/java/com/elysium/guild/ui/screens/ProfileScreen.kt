@@ -318,7 +318,14 @@ fun ProfileScreen(
                                 title = "Floating Boss Timer",
                                 description = "Show a floating bubble over other apps",
                                 checked = pendingBubbleEnabled,
-                                onCheckedChange = { pendingBubbleEnabled = it }
+                                onCheckedChange = { 
+                                    if (it && !canDrawOverlays) {
+                                        pendingBubbleEnabled = false
+                                        openOverlaySettings(context)
+                                    } else {
+                                        pendingBubbleEnabled = it
+                                    }
+                                }
                             )
 
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -769,8 +776,18 @@ private fun isNetworkAvailable(context: Context): Boolean {
 }
 
 private fun requestIgnoreBatteryOptimizations(context: Context) {
-    val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-    context.startActivity(intent)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+            data = Uri.parse("package:${context.packageName}")
+        }
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            // Fallback to settings page if direct request is blocked
+            val settingsIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            context.startActivity(settingsIntent)
+        }
+    }
 }
 
 private fun openAlarmSettings(context: Context) {

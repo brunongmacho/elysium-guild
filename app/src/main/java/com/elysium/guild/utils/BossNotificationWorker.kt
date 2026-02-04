@@ -30,8 +30,6 @@ class BossNotificationWorker @AssistedInject constructor(
         Log.d("BossWorker", "Worker execution started - Scheduling precise alarms")
         
         return try {
-            val now = Clock.System.now()
-
             // 1. Handle Boss Notifications (if enabled)
             if (preferenceManager.bossNotificationsEnabled.value) {
                 val bosses = bossRepository.getBossTimers()
@@ -57,6 +55,7 @@ class BossNotificationWorker @AssistedInject constructor(
             Result.success()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            Log.e("BossWorker", "Error in worker: ${e.message}")
             Result.retry()
         }
     }
@@ -74,7 +73,6 @@ class BossNotificationWorker @AssistedInject constructor(
             putExtra(Constants.EXTRA_IS_EVENT, isEvent)
         }
         
-        // Unique ID: Use name hash + offset to avoid collisions between boss and events
         val requestCode = if (isEvent) name.hashCode() + 1 else name.hashCode()
         
         val pendingIntent = PendingIntent.getBroadcast(
@@ -84,25 +82,37 @@ class BossNotificationWorker @AssistedInject constructor(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
-                Log.d("BossWorker", "Scheduled ${minutesBefore}m alarm for ${if (isEvent) "event" else "boss"}: $name")
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
+                } else {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
+                }
             } else {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
+                @Suppress("DEPRECATION")
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
             }
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
+        } catch (se: SecurityException) {
+            Log.e("BossWorker", "SecurityException: Exact alarm permission not granted on Android 14+")
+            // Fallback to non-exact alarm
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
+        } catch (e: Exception) {
+            Log.e("BossWorker", "Failed to schedule alarm: ${e.message}")
         }
     }
 
     companion object {
         fun schedule(context: Context) {
             val workManager = WorkManager.getInstance(context)
-            val immediateRequest = OneTimeWorkRequestBuilder<BossNotificationWorker>().build()
+            val immediateRequest = OneTimeWorkRequestBuilder<BossNotificationWorker>()
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
+                .build()
             workManager.enqueueUniqueWork(Constants.WORK_NAME_IMMEDIATE, ExistingWorkPolicy.REPLACE, immediateRequest)
 
-            val periodicRequest = PeriodicWorkRequestBuilder<BossNotificationWorker>(1, TimeUnit.HOURS).build()
+            val periodicRequest = PeriodicWorkRequestBuilder<BossNotificationWorker>(1, TimeUnit.HOURS)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
+                .build()
             workManager.enqueueUniquePeriodicWork(Constants.WORK_NAME_PERIODIC, ExistingPeriodicWorkPolicy.UPDATE, periodicRequest)
         }
     }

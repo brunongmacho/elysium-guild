@@ -17,7 +17,7 @@ class BossTimersRepository @Inject constructor(
     val bossDataChanged: SharedFlow<Unit> = _bossDataChanged.asSharedFlow()
 
     suspend fun getBossTimers(): List<BossTimer> {
-        try {
+        return try {
             val response = apiService.getBossTimers()
             if (response.isSuccessful) {
                 val body = response.body()
@@ -27,13 +27,12 @@ class BossTimersRepository @Inject constructor(
                     return bosses ?: emptyList()
                 }
             }
-            // Throw exception to be caught by ViewModel and displayed in UI
             val errorMsg = "API Error: ${response.code()} ${response.message()}"
             Log.e("BossTimersRepository", errorMsg)
-            throw Exception(errorMsg)
+            emptyList() // Return empty list instead of crashing or throwing
         } catch (e: Exception) {
             Log.e("BossTimersRepository", "Failed to fetch boss timers", e)
-            throw e
+            emptyList()
         }
     }
 }
