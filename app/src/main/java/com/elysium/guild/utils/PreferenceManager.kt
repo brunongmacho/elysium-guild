@@ -30,6 +30,9 @@ class PreferenceManager @Inject constructor(
     private val _eventNotificationsEnabled = MutableStateFlow(prefs.getBoolean(Constants.KEY_EVENT_REMINDERS, true))
     val eventNotificationsEnabled: StateFlow<Boolean> = _eventNotificationsEnabled.asStateFlow()
 
+    private val _floatingBubbleEnabled = MutableStateFlow(prefs.getBoolean(Constants.KEY_FLOATING_BUBBLE_ENABLED, false))
+    val floatingBubbleEnabled: StateFlow<Boolean> = _floatingBubbleEnabled.asStateFlow()
+
     var bossNotificationOffset: Int
         get() = prefs.getInt(Constants.KEY_BOSS_NOTIFICATION_OFFSET, 10)
         set(value) = prefs.edit().putInt(Constants.KEY_BOSS_NOTIFICATION_OFFSET, value).apply()
@@ -57,5 +60,10 @@ class PreferenceManager @Inject constructor(
     fun setThemeMode(mode: Int) {
         prefs.edit().putInt(Constants.KEY_THEME_MODE, mode).apply()
         _themeMode.value = mode
+    }
+
+    fun setFloatingBubbleEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.KEY_FLOATING_BUBBLE_ENABLED, enabled).apply()
+        _floatingBubbleEnabled.value = enabled
     }
 }

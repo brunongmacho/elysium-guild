@@ -78,6 +78,7 @@ fun ProfileScreen(
     val savedSound by preferenceManager.notificationSound.collectAsState()
     val savedBossNotif by preferenceManager.bossNotificationsEnabled.collectAsState()
     val savedEventNotif by preferenceManager.eventNotificationsEnabled.collectAsState()
+    val savedBubbleEnabled by preferenceManager.floatingBubbleEnabled.collectAsState()
 
     // Local States for change detection
     var pendingThemeMode by remember(themeMode) { mutableIntStateOf(themeMode) }
@@ -85,6 +86,7 @@ fun ProfileScreen(
     var pendingSound by remember(savedSound) { mutableStateOf(savedSound) }
     var pendingBossNotif by remember(savedBossNotif) { mutableStateOf(savedBossNotif) }
     var pendingEventNotif by remember(savedEventNotif) { mutableStateOf(savedEventNotif) }
+    var pendingBubbleEnabled by remember(savedBubbleEnabled) { mutableStateOf(savedBubbleEnabled) }
 
     var showSaveSuccess by remember { mutableStateOf(false) }
 
@@ -92,7 +94,8 @@ fun ProfileScreen(
             pendingHapticEnabled != hapticEnabled ||
             pendingSound != savedSound ||
             pendingBossNotif != savedBossNotif ||
-            pendingEventNotif != savedEventNotif
+            pendingEventNotif != savedEventNotif ||
+            pendingBubbleEnabled != savedBubbleEnabled
 
     val updateState by viewModel.updateState.collectAsState()
 
@@ -101,6 +104,7 @@ fun ProfileScreen(
     var canScheduleExactAlarms by remember { mutableStateOf(canScheduleExactAlarms(context)) }
     var isNetworkAvailable by remember { mutableStateOf(isNetworkAvailable(context)) }
     var canInstallPackages by remember { mutableStateOf(canInstallPackages(context)) }
+    var canDrawOverlays by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
 
     // Donation Sheet State
     var showDonationSheet by remember { mutableStateOf(false) }
@@ -123,6 +127,7 @@ fun ProfileScreen(
                 canScheduleExactAlarms = canScheduleExactAlarms(context)
                 isNetworkAvailable = isNetworkAvailable(context)
                 canInstallPackages = canInstallPackages(context)
+                canDrawOverlays = Settings.canDrawOverlays(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -310,6 +315,15 @@ fun ProfileScreen(
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
 
                             NotificationToggle(
+                                title = "Floating Boss Timer",
+                                description = "Show a floating bubble over other apps",
+                                checked = pendingBubbleEnabled,
+                                onCheckedChange = { pendingBubbleEnabled = it }
+                            )
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+
+                            NotificationToggle(
                                 title = "Haptic Feedback",
                                 description = "Vibrate on status changes and refreshes",
                                 checked = pendingHapticEnabled,
@@ -395,12 +409,14 @@ fun ProfileScreen(
                     val needsAlarmPermission = !canScheduleExactAlarms
                     val needsBatteryPermission = !isIgnoringBatteryOptimizations
                     val needsInstallPermission = !canInstallPackages
+                    val needsOverlayPermission = !canDrawOverlays
                     val hasNetworkIssue = !isNetworkAvailable
 
                     val showPermissionsSection = needsNotificationPermission ||
                                                needsAlarmPermission ||
                                                needsBatteryPermission ||
                                                needsInstallPermission ||
+                                               needsOverlayPermission ||
                                                hasNetworkIssue
 
                     if (showPermissionsSection) {
@@ -431,6 +447,18 @@ fun ProfileScreen(
                                         isActive = false,
                                         icon = Icons.Default.TimerOff,
                                         onClick = { openAlarmSettings(context) }
+                                    )
+                                    first = false
+                                }
+
+                                if (needsOverlayPermission) {
+                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                                    PermissionStatusItem(
+                                        title = "Overlay Permission",
+                                        statusText = "Required for Bubble (Tap)",
+                                        isActive = false,
+                                        icon = Icons.Default.LayersClear,
+                                        onClick = { openOverlaySettings(context) }
                                     )
                                     first = false
                                 }
@@ -648,6 +676,7 @@ fun ProfileScreen(
                                     pendingSound = savedSound
                                     pendingBossNotif = savedBossNotif
                                     pendingEventNotif = savedEventNotif
+                                    pendingBubbleEnabled = savedBubbleEnabled
                                 },
                                 modifier = Modifier.weight(1f).fillMaxHeight()
                             ) {
@@ -665,6 +694,7 @@ fun ProfileScreen(
                                     preferenceManager.setNotificationSound(pendingSound)
                                     preferenceManager.setBossNotificationsEnabled(pendingBossNotif)
                                     preferenceManager.setEventNotificationsEnabled(pendingEventNotif)
+                                    preferenceManager.setFloatingBubbleEnabled(pendingBubbleEnabled)
                                     showSaveSuccess = true
                                 },
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -750,6 +780,13 @@ private fun openAlarmSettings(context: Context) {
         }
         context.startActivity(intent)
     }
+}
+
+private fun openOverlaySettings(context: Context) {
+    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+        data = Uri.parse("package:${context.packageName}")
+    }
+    context.startActivity(intent)
 }
 
 private fun openNotificationSettings(context: Context) {

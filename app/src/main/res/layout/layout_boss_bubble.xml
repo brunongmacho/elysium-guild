@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="8dp">
+
+    <ImageView
+        android:id="@+id/bubble_icon"
+        android:layout_width="55dp"
+        android:layout_height="55dp"
+        android:src="@drawable/zoomed_logo"
+        android:background="@drawable/bg_bubble"
+        android:elevation="8dp"
+        android:contentDescription="Elysium Bubble"
+        android:scaleType="centerCrop"
+        android:clipToOutline="true"
+        android:padding="0dp" />
+
+    <LinearLayout
+        android:id="@+id/timer_list_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_timer_box"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:visibility="gone"
+        android:elevation="6dp">
+
+        <TextView
+            android:id="@+id/next_boss_timer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Loading..."
+            android:textColor="@color/timer_text_color"
+            android:textStyle="bold"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,6 +1,9 @@
 package com.elysium.guild.utils
 
+import android.content.Context
 import androidx.compose.ui.graphics.Color
+import androidx.core.content.ContextCompat
+import com.elysium.guild.R
 import com.elysium.guild.models.EventType
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -24,6 +27,9 @@ object Constants {
     const val KEY_EVENT_REMINDERS = "event_reminders"
     const val KEY_HAPTIC_ENABLED = "haptic_feedback_enabled"
     const val KEY_BOSS_NOTIFICATION_OFFSET = "boss_notification_offset"
+    const val KEY_FLOATING_BUBBLE_ENABLED = "floating_bubble_enabled"
+    const val KEY_BUBBLE_LAST_X = "bubble_last_x"
+    const val KEY_BUBBLE_LAST_Y = "bubble_last_y"
     
     // Theme Modes
     const val THEME_SYSTEM = 0
@@ -36,6 +42,27 @@ object Constants {
     const val BOSS_NOTIFICATION_CHANNEL_NAME = "Boss & Event Alerts"
     const val BOSS_NOTIFICATION_CHANNEL_DESC = "Notifications for boss spawns and guild events."
     
+    // Bubble Service Configuration
+    const val BUBBLE_NOTIFICATION_CHANNEL_ID = "bubble_service_channel"
+    const val BUBBLE_NOTIFICATION_CHANNEL_NAME = "Floating Bubble Service"
+    const val BUBBLE_NOTIFICATION_ID = 1001
+    const val BUBBLE_SNAP_ANIMATION_DURATION = 300L
+    const val BUBBLE_SPAWNED_GRACE_PERIOD_SECONDS = -600L // 10 minutes after spawn
+    const val BUBBLE_VISIBLE_THRESHOLD_SECONDS = 3600L // 1 hour before spawn
+    
+    const val BUBBLE_INITIAL_Y_DP = 200
+    const val BUBBLE_EXPANDED_Y_DP = 50
+    const val BUBBLE_HEADER_HEIGHT_DP = 65
+    const val BUBBLE_DRAG_THRESHOLD_PX = 10
+    const val BUBBLE_TEXT_SIZE_TITLE_SP = 18f
+    const val BUBBLE_TEXT_SIZE_SUBTITLE_SP = 12f
+    const val BUBBLE_TEXT_SIZE_HEADER_SP = 16f
+    const val BUBBLE_TEXT_SIZE_ROW_SP = 14f
+    const val BUBBLE_ROW_PADDING_HORIZONTAL_DP = 16
+    const val BUBBLE_ROW_PADDING_VERTICAL_DP = 6
+    const val BUBBLE_MAX_WIDTH_DP = 300
+    const val BUBBLE_MAX_ITEMS = 10
+
     // Intent Extras
     const val EXTRA_BOSS_NAME = "extra_boss_name"
     const val EXTRA_MINUTES_REMAINING = "extra_minutes_remaining"
@@ -110,6 +137,14 @@ object UIUtils {
             isReady -> Constants.COLOR_READY
             isSoon -> Constants.COLOR_SOON
             else -> if (isDark) Constants.COLOR_TRACKING else Constants.COLOR_TRACKING_LIGHT
+        }
+    }
+
+    fun getBubbleStatusColorRes(diffSeconds: Long): Int {
+        return when {
+            diffSeconds <= 0 -> R.color.boss_ready
+            diffSeconds <= Constants.SPAWNING_SOON_THRESHOLD_MINUTES * 60 -> R.color.boss_soon
+            else -> R.color.primary
         }
     }
 

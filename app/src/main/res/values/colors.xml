@@ -43,4 +43,9 @@
 
     <!-- Widget Colors -->
     <color name="glass_white">#26FFFFFF</color>
+
+    <!-- Bubble Theme Colors (Light Theme Defaults) -->
+    <color name="bubble_bg_color">#E6FFFFFF</color>
+    <color name="bubble_stroke_color">#40000000</color>
+    <color name="timer_text_color">#1C1B1F</color>
 </resources>
