@@ -110,6 +110,8 @@ class BossBubbleService : Service() {
     override fun onCreate() {
         super.onCreate()
         prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        
+        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         updateScreenDimensions()
         
         lastStableX = prefs.getInt(Constants.KEY_BUBBLE_LAST_X, screenWidth)
@@ -126,23 +128,32 @@ class BossBubbleService : Service() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         updateScreenDimensions()
-        if (isExpanded) {
-            params!!.width = WindowManager.LayoutParams.MATCH_PARENT
-            params!!.height = WindowManager.LayoutParams.MATCH_PARENT
-            updateViewLayoutSafely()
-        } else {
-            snapToEdge()
+        val currentParams = params
+        if (currentParams != null) {
+            if (isExpanded) {
+                currentParams.width = WindowManager.LayoutParams.MATCH_PARENT
+                currentParams.height = WindowManager.LayoutParams.MATCH_PARENT
+                updateViewLayoutSafely()
+            } else {
+                snapToEdge()
+            }
         }
         updateCloseViewPosition()
     }
 
     private fun updateScreenDimensions() {
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        val display = windowManager?.defaultDisplay
-        val size = Point()
-        display?.getRealSize(size)
-        screenWidth = size.x
-        screenHeight = size.y
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager?.currentWindowMetrics?.bounds?.let { bounds ->
+                screenWidth = bounds.width()
+                screenHeight = bounds.height()
+            }
+        } else {
+            val size = Point()
+            @Suppress("DEPRECATION")
+            windowManager?.defaultDisplay?.getRealSize(size)
+            screenWidth = size.x
+            screenHeight = size.y
+        }
     }
 
     private fun startForegroundService() {
@@ -167,182 +178,189 @@ class BossBubbleService : Service() {
     }
 
     private fun setupCloseView() {
-        closeView = LayoutInflater.from(this).inflate(R.layout.layout_bubble_close, null)
-        
-        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+        try {
+            closeView = LayoutInflater.from(this).inflate(R.layout.layout_bubble_close, null)
+            
+            val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
 
-        closeParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            layoutType,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = dpToPx(50)
-        }
-        
-        closeView?.visibility = View.GONE
-        windowManager?.addView(closeView, closeParams)
+            closeParams = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                layoutType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                y = dpToPx(50)
+            }
+            
+            closeView?.visibility = View.GONE
+            windowManager?.addView(closeView, closeParams)
+        } catch (e: Exception) { }
     }
 
     private fun updateCloseViewPosition() {
-        if (closeView != null && closeParams != null) {
-            windowManager?.updateViewLayout(closeView, closeParams)
+        if (closeView != null && closeParams != null && closeView!!.isAttachedToWindow) {
+            try {
+                windowManager?.updateViewLayout(closeView, closeParams)
+            } catch (e: Exception) { }
         }
     }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun setupFloatingView() {
-        floatingView = LayoutInflater.from(this).inflate(R.layout.layout_boss_bubble, null)
-        bubbleIcon = floatingView?.findViewById(R.id.bubble_icon)
-        timerLayout = floatingView?.findViewById(R.id.timer_list_container)
-        
-        timerListContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        (timerLayout as? LinearLayout)?.apply {
-            removeAllViews()
-            addView(timerListContainer)
-        }
+        try {
+            floatingView = LayoutInflater.from(this).inflate(R.layout.layout_boss_bubble, null)
+            bubbleIcon = floatingView?.findViewById(R.id.bubble_icon)
+            timerLayout = floatingView?.findViewById(R.id.timer_list_container)
+            
+            timerListContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+            (timerLayout as? LinearLayout)?.apply {
+                removeAllViews()
+                addView(timerListContainer)
+            }
 
-        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+            val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
 
-        params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            layoutType,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = lastStableX
-            y = lastStableY
-        }
+            params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                layoutType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = lastStableX
+                y = lastStableY
+            }
 
-        bubbleIcon?.setOnTouchListener(object : View.OnTouchListener {
-            private var touchOffsetFromCenter = PointF()
-            private var isMoving = false
+            bubbleIcon?.setOnTouchListener(object : View.OnTouchListener {
+                private var touchOffsetFromCenter = PointF()
+                private var isMoving = false
 
-            override fun onTouch(v: View, event: MotionEvent): Boolean {
-                if (isExpanded || isAnimating) return false
-                
-                val closeCenter = getCloseCenter()
-                val iconWidth = v.width
-                val iconHeight = v.height
-                val padding = dpToPx(8)
-                val centerOffsetInWindowX = padding + iconWidth / 2f
-                val centerOffsetInWindowY = padding + iconHeight / 2f
+                override fun onTouch(v: View, event: MotionEvent): Boolean {
+                    if (isExpanded || isAnimating) return false
+                    
+                    val currentParams = params ?: return false
+                    val closeCenter = getCloseCenter()
+                    val iconWidth = v.width
+                    val iconHeight = v.height
+                    val padding = dpToPx(8)
+                    val centerOffsetInWindowX = padding + iconWidth / 2f
+                    val centerOffsetInWindowY = padding + iconHeight / 2f
 
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        val location = IntArray(2)
-                        v.getLocationOnScreen(location)
-                        val currentCenterX = location[0] + iconWidth / 2f
-                        val currentCenterY = location[1] + iconHeight / 2f
-                        touchOffsetFromCenter.set(event.rawX - currentCenterX, event.rawY - currentCenterY)
-                        isMoving = false
-                        return true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        val freeCenterX = event.rawX - touchOffsetFromCenter.x
-                        val freeCenterY = event.rawY - touchOffsetFromCenter.y
-                        
-                        if (!isMoving) {
-                            val currentLoc = IntArray(2)
-                            v.getLocationOnScreen(currentLoc)
-                            if (abs(event.rawX - (currentLoc[0] + iconWidth / 2f)) > Constants.BUBBLE_DRAG_THRESHOLD_PX || 
-                                abs(event.rawY - (currentLoc[1] + iconHeight / 2f)) > Constants.BUBBLE_DRAG_THRESHOLD_PX) {
-                                isMoving = true
-                                showCloseView()
-                            }
+                    when (event.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            val location = IntArray(2)
+                            v.getLocationOnScreen(location)
+                            val currentCenterX = location[0] + iconWidth / 2f
+                            val currentCenterY = location[1] + iconHeight / 2f
+                            touchOffsetFromCenter.set(event.rawX - currentCenterX, event.rawY - currentCenterY)
+                            isMoving = false
+                            return true
                         }
-
-                        if (isMoving) {
-                            params!!.x = (freeCenterX - centerOffsetInWindowX).toInt()
-                            params!!.y = (freeCenterY - centerOffsetInWindowY).toInt()
-                            
-                            updateViewLayoutSafely()
-                        }
-                        return true
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        if (isMoving) {
+                        MotionEvent.ACTION_MOVE -> {
                             val freeCenterX = event.rawX - touchOffsetFromCenter.x
                             val freeCenterY = event.rawY - touchOffsetFromCenter.y
-                            val dist = sqrt(
-                                ((freeCenterX - closeCenter.x) * (freeCenterX - closeCenter.x) + 
-                                 (freeCenterY - closeCenter.y) * (freeCenterY - closeCenter.y)).toDouble()
-                            ).toFloat()
-
-                            if (dist < dpToPx(80)) {
-                                performCollapseAndHide()
-                            } else {
-                                hideCloseView()
-                                snapToEdge()
+                            
+                            if (!isMoving) {
+                                val currentLoc = IntArray(2)
+                                v.getLocationOnScreen(currentLoc)
+                                if (abs(event.rawX - (currentLoc[0] + iconWidth / 2f)) > Constants.BUBBLE_DRAG_THRESHOLD_PX || 
+                                    abs(event.rawY - (currentLoc[1] + iconHeight / 2f)) > Constants.BUBBLE_DRAG_THRESHOLD_PX) {
+                                    isMoving = true
+                                    showCloseView()
+                                }
                             }
-                        } else if (event.action == MotionEvent.ACTION_UP) {
-                            v.performClick()
+
+                            if (isMoving) {
+                                currentParams.x = (freeCenterX - centerOffsetInWindowX).toInt()
+                                currentParams.y = (freeCenterY - centerOffsetInWindowY).toInt()
+                                
+                                updateViewLayoutSafely()
+                            }
+                            return true
                         }
-                        isMoving = false
-                        return true
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                            if (isMoving) {
+                                val freeCenterX = event.rawX - touchOffsetFromCenter.x
+                                val freeCenterY = event.rawY - touchOffsetFromCenter.y
+                                val dist = sqrt(
+                                    ((freeCenterX - closeCenter.x) * (freeCenterX - closeCenter.x) + 
+                                     (freeCenterY - closeCenter.y) * (freeCenterY - closeCenter.y)).toDouble()
+                                ).toFloat()
+
+                                if (dist < dpToPx(80)) {
+                                    performCollapseAndHide()
+                                } else {
+                                    hideCloseView()
+                                    snapToEdge()
+                                }
+                            } else if (event.action == MotionEvent.ACTION_UP) {
+                                v.performClick()
+                            }
+                            isMoving = false
+                            return true
+                        }
                     }
+                    return false
                 }
-                return false
-            }
-        })
+            })
 
-        bubbleIcon?.setOnClickListener {
-            if (!isAnimating) {
-                toggleExpandedView()
+            bubbleIcon?.setOnClickListener {
+                if (!isAnimating) {
+                    toggleExpandedView()
+                }
             }
-        }
 
-        floatingView?.setOnTouchListener { _, event ->
-            if (isExpanded && !isAnimating) {
-                if (event.action == MotionEvent.ACTION_DOWN) {
-                    val hitRect = android.graphics.Rect()
-                    timerLayout?.getGlobalVisibleRect(hitRect)
-                    val iconRect = android.graphics.Rect()
-                    bubbleIcon?.getGlobalVisibleRect(iconRect)
-                    
-                    if (!hitRect.contains(event.rawX.toInt(), event.rawY.toInt()) && 
-                        !iconRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+            floatingView?.setOnTouchListener { _, event ->
+                if (isExpanded && !isAnimating) {
+                    if (event.action == MotionEvent.ACTION_DOWN) {
+                        val hitRect = android.graphics.Rect()
+                        timerLayout?.getGlobalVisibleRect(hitRect)
+                        val iconRect = android.graphics.Rect()
+                        bubbleIcon?.getGlobalVisibleRect(iconRect)
+                        
+                        if (!hitRect.contains(event.rawX.toInt(), event.rawY.toInt()) && 
+                            !iconRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+                            toggleExpandedView()
+                            return@setOnTouchListener true
+                        }
+                    } else if (event.action == MotionEvent.ACTION_OUTSIDE) {
                         toggleExpandedView()
                         return@setOnTouchListener true
                     }
-                } else if (event.action == MotionEvent.ACTION_OUTSIDE) {
-                    toggleExpandedView()
-                    return@setOnTouchListener true
                 }
+                false
             }
-            false
-        }
 
-        floatingView?.visibility = View.GONE
-        windowManager?.addView(floatingView, params)
-        
-        floatingView?.post {
-            snapToEdge()
-        }
+            floatingView?.visibility = View.GONE
+            windowManager?.addView(floatingView, params)
+            
+            floatingView?.post {
+                snapToEdge()
+            }
+        } catch (e: Exception) { }
     }
 
     private fun getCloseCenter(): Point {
@@ -400,10 +418,12 @@ class BossBubbleService : Service() {
 
     private fun showFloatingView() {
         if (!userManuallyHidden) {
-            params!!.x = lastStableX
-            params!!.y = lastStableY
-            updateViewLayoutSafely()
-            floatingView?.visibility = View.VISIBLE
+            params?.let {
+                it.x = lastStableX
+                it.y = lastStableY
+                updateViewLayoutSafely()
+                floatingView?.visibility = View.VISIBLE
+            }
         }
     }
 
@@ -415,7 +435,8 @@ class BossBubbleService : Service() {
     }
 
     private fun snapToEdge() {
-        val currentX = params!!.x
+        val currentParams = params ?: return
+        val currentX = currentParams.x
         val viewWidth = if (floatingView?.width ?: 0 > 0) floatingView!!.width else dpToPx(70)
         val targetX = if (currentX + viewWidth / 2 < screenWidth / 2) {
             0
@@ -425,16 +446,20 @@ class BossBubbleService : Service() {
 
         val animator = ValueAnimator.ofInt(currentX, targetX)
         animator.addUpdateListener { animation ->
-            if (floatingView != null && (floatingView!!.isAttachedToWindow || floatingView!!.parent != null)) {
-                params!!.x = animation.animatedValue as Int
-                updateViewLayoutSafely()
+            if (floatingView != null && floatingView!!.isAttachedToWindow) {
+                params?.let {
+                    it.x = animation.animatedValue as Int
+                    updateViewLayoutSafely()
+                }
             }
         }
         animator.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
-                lastStableX = targetX
-                lastStableY = params!!.y
-                savePosition(lastStableX, lastStableY)
+                params?.let {
+                    lastStableX = targetX
+                    lastStableY = it.y
+                    savePosition(lastStableX, lastStableY)
+                }
             }
         })
         animator.duration = Constants.BUBBLE_SNAP_ANIMATION_DURATION
@@ -475,25 +500,26 @@ class BossBubbleService : Service() {
         val rootLayout = floatingView as? LinearLayout ?: return
         val icon = bubbleIcon ?: return
         val timers = timerLayout ?: return
+        val currentParams = params ?: return
         
         isExpanded = !isExpanded
         isAnimating = true
 
         if (isExpanded) {
-            lastStableX = params!!.x
-            lastStableY = params!!.y
+            lastStableX = currentParams.x
+            lastStableY = currentParams.y
             
             val iconWidth = if (icon.width > 0) icon.width else dpToPx(55)
             val targetXForIcon = screenWidth - iconWidth - dpToPx(16)
             val targetYForIcon = dpToPx(Constants.BUBBLE_EXPANDED_Y_DP)
             
-            animateMovement(params!!.x, targetXForIcon, params!!.y, targetYForIcon) {
+            animateMovement(currentParams.x, targetXForIcon, currentParams.y, targetYForIcon) {
                 floatingView?.visibility = View.INVISIBLE
                 
-                params!!.width = WindowManager.LayoutParams.MATCH_PARENT
-                params!!.height = WindowManager.LayoutParams.MATCH_PARENT
-                params!!.x = 0
-                params!!.y = 0
+                currentParams.width = WindowManager.LayoutParams.MATCH_PARENT
+                currentParams.height = WindowManager.LayoutParams.MATCH_PARENT
+                currentParams.x = 0
+                currentParams.y = 0
                 
                 rootLayout.orientation = LinearLayout.VERTICAL
                 rootLayout.gravity = Gravity.TOP
@@ -537,12 +563,12 @@ class BossBubbleService : Service() {
             floatingView?.visibility = View.INVISIBLE
             timers.visibility = View.GONE
             
-            params!!.width = WindowManager.LayoutParams.WRAP_CONTENT
-            params!!.height = WindowManager.LayoutParams.WRAP_CONTENT
+            currentParams.width = WindowManager.LayoutParams.WRAP_CONTENT
+            currentParams.height = WindowManager.LayoutParams.WRAP_CONTENT
             
             val iconWidth = if (icon.width > 0) icon.width else dpToPx(55)
-            params!!.x = screenWidth - iconWidth - dpToPx(16)
-            params!!.y = dpToPx(Constants.BUBBLE_EXPANDED_Y_DP)
+            currentParams.x = screenWidth - iconWidth - dpToPx(16)
+            currentParams.y = dpToPx(Constants.BUBBLE_EXPANDED_Y_DP)
             
             rootLayout.orientation = LinearLayout.HORIZONTAL
             rootLayout.gravity = Gravity.CENTER_VERTICAL
@@ -562,7 +588,7 @@ class BossBubbleService : Service() {
             
             floatingView?.post {
                 floatingView?.visibility = View.VISIBLE
-                animateMovement(params!!.x, lastStableX, params!!.y, lastStableY) {
+                animateMovement(currentParams.x, lastStableX, currentParams.y, lastStableY) {
                     adjustLayoutForSide(lastStableX == 0)
                     isAnimating = false
                 }
@@ -575,12 +601,16 @@ class BossBubbleService : Service() {
         val yAnimator = ValueAnimator.ofInt(fromY, toY)
         
         xAnimator.addUpdateListener { 
-            params!!.x = it.animatedValue as Int
-            updateViewLayoutSafely()
+            params?.let { p ->
+                p.x = it.animatedValue as Int
+                updateViewLayoutSafely()
+            }
         }
         yAnimator.addUpdateListener { 
-            params!!.y = it.animatedValue as Int
-            updateViewLayoutSafely()
+            params?.let { p ->
+                p.y = it.animatedValue as Int
+                updateViewLayoutSafely()
+            }
         }
         
         val animatorSet = AnimatorSet()
@@ -785,8 +815,10 @@ class BossBubbleService : Service() {
 
     private fun updateViewLayoutSafely() {
         try {
-            if (floatingView != null && (floatingView!!.isAttachedToWindow || floatingView!!.parent != null)) {
-                windowManager?.updateViewLayout(floatingView, params)
+            val v = floatingView
+            val p = params
+            if (v != null && p != null && v.isAttachedToWindow) {
+                windowManager?.updateViewLayout(v, p)
             }
         } catch (e: Exception) { }
     }
@@ -794,11 +826,15 @@ class BossBubbleService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
-        if (floatingView != null && floatingView?.parent != null) {
-            windowManager?.removeView(floatingView)
-        }
-        if (closeView != null && closeView?.parent != null) {
-            windowManager?.removeView(closeView)
-        }
+        try {
+            if (floatingView != null && floatingView?.isAttachedToWindow == true) {
+                windowManager?.removeView(floatingView)
+            }
+        } catch (e: Exception) { }
+        try {
+            if (closeView != null && closeView?.isAttachedToWindow == true) {
+                windowManager?.removeView(closeView)
+            }
+        } catch (e: Exception) { }
     }
 }

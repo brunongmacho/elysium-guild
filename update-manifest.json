@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 16,
-  "latestVersionName": "1.1.0",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.0/app-debug.apk",
-  "releaseNotes": "- UI Stability: Fixed critical issue with settings toggles disappearing during interaction.\n- ELYSIUM Highlighting: World Boss rotations for ELYSIUM now feature a distinct primary glow and '(OUR TURN)' label.\n- Premium Glassy UI: Refined translucent textures and gradient borders across all chips, toggles, and buttons.\n- Theme-Aware Notifications: Integrated glassy top-notifications for a consistent feedback experience.\n- Badge Optimization: Improved layout logic to prevent text wrapping on smaller screens.",
+  "latestVersionCode": 17,
+  "latestVersionName": "1.1.1",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.1/app-debug.apk",
+  "releaseNotes": "- Crash Fix (Lenovo Legion Duel 2): Resolved high-frequency configuration change crashes by removing unsafe WindowManager access.\n- Device Stability: Modernized screen dimension detection for Android 11+ and added attachment validation before view updates.\n- Floating Bubble: Improved race condition handling during service initialization and teardown.",
   "isForceUpdate": false
 }
