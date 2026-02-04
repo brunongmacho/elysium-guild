@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 17,
-  "latestVersionName": "1.1.1",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.1/app-debug.apk",
-  "releaseNotes": "- Crash Fix (Lenovo Legion Duel 2): Resolved high-frequency configuration change crashes by removing unsafe WindowManager access.\n- Device Stability: Modernized screen dimension detection for Android 11+ and added attachment validation before view updates.\n- Floating Bubble: Improved race condition handling during service initialization and teardown.",
+  "latestVersionCode": 18,
+  "latestVersionName": "1.1.2",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.2/app-debug.apk",
+  "releaseNotes": "- UI Optimization: Fixed bubble icon appearance to be perfectly circular across all device manufacturers using Material Shapeable components.\n- Crash Fix (Lenovo Legion Duel 2): Resolved unsafe WindowManager access during high-frequency configuration changes.\n- Device Stability: Modernized screen dimension detection for Android 11+ and improved view attachment validation.",
   "isForceUpdate": false
 }
