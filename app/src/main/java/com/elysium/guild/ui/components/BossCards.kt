@@ -33,13 +33,12 @@ import com.elysium.guild.models.*
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.UIUtils
 import kotlinx.datetime.Instant
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @Composable
 fun BossTimerCard(
     boss: BossTimer,
-    currentTime: State<Instant>
+    currentTime: State<Instant>,
+    useLocalTimezone: Boolean = false
 ) {
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
@@ -111,7 +110,7 @@ fun BossTimerCard(
                     RotationStatus(boss.rotation)
                 }
 
-                SpawnTimeText(boss)
+                SpawnTimeText(boss, useLocalTimezone)
             }
         }
 
@@ -223,10 +222,11 @@ private fun RotationStatus(rotation: RotationInfo) {
 }
 
 @Composable
-private fun SpawnTimeText(boss: BossTimer) {
+private fun SpawnTimeText(boss: BossTimer, useLocalTimezone: Boolean) {
     boss.nextSpawnTime?.let { spawnTime ->
-        val formattedTime = remember(spawnTime, boss.status, boss.type) {
-            formatSpawnTime(spawnTime, boss.status, boss.type)
+        val formattedTime = remember(spawnTime, boss.status, boss.type, useLocalTimezone) {
+            val prefix = if (boss.type == "schedule") "Scheduled:" else "Spawns:"
+            "$prefix ${UIUtils.formatEventTime(spawnTime, useLocalTimezone)}"
         }
         Text(
             text = formattedTime,
@@ -409,21 +409,6 @@ private fun shareBossStatus(context: Context, boss: BossTimer, now: Instant) {
     clipboard.setPrimaryClip(clip)
     
     Toast.makeText(context, "Call to Arms copied to clipboard!", Toast.LENGTH_SHORT).show()
-}
-
-private fun formatSpawnTime(spawnTime: String, status: String, type: String): String {
-    return try {
-        val instant = Instant.parse(spawnTime)
-        val javaInstant = java.time.Instant.ofEpochMilli(instant.toEpochMilliseconds())
-        val zonedDateTime = javaInstant.atZone(java.time.ZoneId.of("Asia/Manila"))
-        val formatter = DateTimeFormatter.ofPattern("MMM d, h:mm a", Locale.ENGLISH)
-        val formattedDate = zonedDateTime.format(formatter)
-        
-        val prefix = if (type == "schedule") "Scheduled:" else "Spawns:"
-        "$prefix $formattedDate"
-    } catch (e: Exception) {
-        "Time TBD"
-    }
 }
 
 private fun calculateBossCountdown(spawnTime: String, now: Instant): String {

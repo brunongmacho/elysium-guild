@@ -30,6 +30,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.elysium.guild.ui.components.*
 import com.elysium.guild.utils.Constants
+import com.elysium.guild.utils.PreferenceManager
 import com.elysium.guild.viewmodel.BossTimersViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -38,10 +39,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun BossTimersScreen(
     navController: NavController,
-    viewModel: BossTimersViewModel = hiltViewModel()
+    viewModel: BossTimersViewModel = hiltViewModel(),
+    preferenceManager: PreferenceManager
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentTime = viewModel.currentTime.collectAsState()
+    val useLocalTimezone by preferenceManager.useLocalTimezone.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -230,7 +233,11 @@ fun BossTimersScreen(
                                     items = uiState.filteredBosses,
                                     key = { it.bossName }
                                 ) { boss ->
-                                    BossTimerCard(boss = boss, currentTime = currentTime)
+                                    BossTimerCard(
+                                        boss = boss,
+                                        currentTime = currentTime,
+                                        useLocalTimezone = useLocalTimezone
+                                    )
                                 }
                             }
                         }

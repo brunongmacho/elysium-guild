@@ -30,7 +30,8 @@ object Constants {
     const val KEY_FLOATING_BUBBLE_ENABLED = "floating_bubble_enabled"
     const val KEY_BUBBLE_LAST_X = "bubble_last_x"
     const val KEY_BUBBLE_LAST_Y = "bubble_last_y"
-    
+    const val KEY_USE_LOCAL_TIMEZONE = "use_local_timezone"
+
     // Theme Modes
     const val THEME_SYSTEM = 0
     const val THEME_LIGHT = 1
@@ -159,18 +160,26 @@ object UIUtils {
         }
     }
 
-    fun formatEventTime(timeString: String): String {
+    fun formatEventTime(timeString: String, useLocalTimezone: Boolean = false): String {
         return try {
             val instant = Instant.parse(timeString)
-            val localDateTime = instant.toLocalDateTime(TimeZone.of("Asia/Manila"))
+            val targetTz = if (useLocalTimezone) TimeZone.currentSystemDefault() else TimeZone.of("Asia/Manila")
+            val localDateTime = instant.toLocalDateTime(targetTz)
             val day = localDateTime.dayOfMonth
             val month = localDateTime.month.name.substring(0, 3).lowercase().replaceFirstChar { it.uppercase() }
             val year = localDateTime.year
             val hour = if (localDateTime.hour % 12 == 0) 12 else localDateTime.hour % 12
             val minute = String.format("%02d", localDateTime.minute)
             val amPm = if (localDateTime.hour < 12) "AM" else "PM"
+            
+            val tzLabel = if (useLocalTimezone) {
+                val zoneName = targetTz.id
+                if (zoneName.contains("/")) zoneName.split("/").last().replace("_", " ") else zoneName
+            } else {
+                "PHT"
+            }
 
-            "$month $day, $year $hour:$minute $amPm"
+            "$month $day, $year $hour:$minute $amPm ($tzLabel)"
         } catch (e: Exception) {
             "Time TBD"
         }

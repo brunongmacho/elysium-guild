@@ -1,6 +1,8 @@
 package com.elysium.guild
 
 import android.Manifest
+import android.app.AlarmManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -60,11 +62,22 @@ class MainActivity : ComponentActivity() {
     ) {
         if (Settings.canDrawOverlays(this)) {
             Toast.makeText(this, "Overlay permission granted", Toast.LENGTH_SHORT).show()
-            // The flow observer will catch the permission change and start the service if enabled
         } else {
             Toast.makeText(this, "Overlay permission denied", Toast.LENGTH_LONG).show()
             lifecycleScope.launch {
                 preferenceManager.setFloatingBubbleEnabled(false)
+            }
+        }
+    }
+
+    private val exactAlarmPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            if (alarmManager.canScheduleExactAlarms()) {
+                Toast.makeText(this, "Exact alarms enabled", Toast.LENGTH_SHORT).show()
+                BossNotificationWorker.schedule(this)
             }
         }
     }
@@ -75,6 +88,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         askNotificationPermission()
+        checkExactAlarmPermission()
         BossNotificationWorker.schedule(this)
         profileViewModel.checkForUpdates(silent = true)
 
@@ -165,11 +179,34 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestOverlayPermission() {
-        val intent = Intent(
-            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            Uri.parse("package:$packageName")
-        )
-        overlayPermissionLauncher.launch(intent)
+        try {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            overlayPermissionLauncher.launch(intent)
+        } catch (e: Exception) {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+            overlayPermissionLauncher.launch(intent)
+        }
+    }
+
+    private fun checkExactAlarmPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            if (!alarmManager.canScheduleExactAlarms()) {
+                try {
+                    val intent = Intent(
+                        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                        Uri.parse("package:$packageName")
+                    )
+                    exactAlarmPermissionLauncher.launch(intent)
+                } catch (e: Exception) {
+                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                    exactAlarmPermissionLauncher.launch(intent)
+                }
+            }
+        }
     }
 
     override fun onResume() {

@@ -79,6 +79,7 @@ fun ProfileScreen(
     val savedBossNotif by preferenceManager.bossNotificationsEnabled.collectAsState()
     val savedEventNotif by preferenceManager.eventNotificationsEnabled.collectAsState()
     val savedBubbleEnabled by preferenceManager.floatingBubbleEnabled.collectAsState()
+    val savedLocalTimezone by preferenceManager.useLocalTimezone.collectAsState()
 
     // Local States for change detection
     var pendingThemeMode by remember(themeMode) { mutableIntStateOf(themeMode) }
@@ -87,6 +88,7 @@ fun ProfileScreen(
     var pendingBossNotif by remember(savedBossNotif) { mutableStateOf(savedBossNotif) }
     var pendingEventNotif by remember(savedEventNotif) { mutableStateOf(savedEventNotif) }
     var pendingBubbleEnabled by remember(savedBubbleEnabled) { mutableStateOf(savedBubbleEnabled) }
+    var pendingLocalTimezone by remember(savedLocalTimezone) { mutableStateOf(savedLocalTimezone) }
 
     var showSaveSuccess by remember { mutableStateOf(false) }
 
@@ -95,7 +97,8 @@ fun ProfileScreen(
             pendingSound != savedSound ||
             pendingBossNotif != savedBossNotif ||
             pendingEventNotif != savedEventNotif ||
-            pendingBubbleEnabled != savedBubbleEnabled
+            pendingBubbleEnabled != savedBubbleEnabled ||
+            pendingLocalTimezone != savedLocalTimezone
 
     val updateState by viewModel.updateState.collectAsState()
 
@@ -352,32 +355,43 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 3. APPEARANCE
+                    // 3. APPEARANCE & TIMEZONE
                     SettingsCard(
-                        title = "Appearance",
+                        title = "Appearance and Time",
                         icon = Icons.Default.Palette
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ThemeOptionButton(
-                                text = "Light",
-                                isSelected = pendingThemeMode == Constants.THEME_LIGHT,
-                                onClick = { pendingThemeMode = Constants.THEME_LIGHT },
-                                modifier = Modifier.weight(1f)
-                            )
-                            ThemeOptionButton(
-                                text = "Dark",
-                                isSelected = pendingThemeMode == Constants.THEME_DARK,
-                                onClick = { pendingThemeMode = Constants.THEME_DARK },
-                                modifier = Modifier.weight(1f)
-                            )
-                            ThemeOptionButton(
-                                text = "System",
-                                isSelected = pendingThemeMode == Constants.THEME_SYSTEM,
-                                onClick = { pendingThemeMode = Constants.THEME_SYSTEM },
-                                modifier = Modifier.weight(1f)
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                ThemeOptionButton(
+                                    text = "Light",
+                                    isSelected = pendingThemeMode == Constants.THEME_LIGHT,
+                                    onClick = { pendingThemeMode = Constants.THEME_LIGHT },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                ThemeOptionButton(
+                                    text = "Dark",
+                                    isSelected = pendingThemeMode == Constants.THEME_DARK,
+                                    onClick = { pendingThemeMode = Constants.THEME_DARK },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                ThemeOptionButton(
+                                    text = "System",
+                                    isSelected = pendingThemeMode == Constants.THEME_SYSTEM,
+                                    onClick = { pendingThemeMode = Constants.THEME_SYSTEM },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
+
+                            NotificationToggle(
+                                title = "Use Local Timezone",
+                                description = "Show times in your device's timezone instead of GMT+8",
+                                checked = pendingLocalTimezone,
+                                onCheckedChange = { pendingLocalTimezone = it }
                             )
                         }
                     }
@@ -684,6 +698,7 @@ fun ProfileScreen(
                                     pendingBossNotif = savedBossNotif
                                     pendingEventNotif = savedEventNotif
                                     pendingBubbleEnabled = savedBubbleEnabled
+                                    pendingLocalTimezone = savedLocalTimezone
                                 },
                                 modifier = Modifier.weight(1f).fillMaxHeight()
                             ) {
@@ -702,6 +717,7 @@ fun ProfileScreen(
                                     preferenceManager.setBossNotificationsEnabled(pendingBossNotif)
                                     preferenceManager.setEventNotificationsEnabled(pendingEventNotif)
                                     preferenceManager.setFloatingBubbleEnabled(pendingBubbleEnabled)
+                                    preferenceManager.setUseLocalTimezone(pendingLocalTimezone)
                                     showSaveSuccess = true
                                 },
                                 modifier = Modifier.weight(1f).fillMaxHeight(),

@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,7 +34,13 @@ fun LeaderboardScreen(
     viewModel: LeaderboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+
+    // Adjust padding and spacing based on screen width
+    val contentPadding = if (screenWidth < 360.dp) 8.dp else 16.dp
+    val headerSpacing = if (screenWidth < 360.dp) 8.dp else 16.dp
+
     LaunchedEffect(Unit) {
         viewModel.refreshLeaderboard()
     }
@@ -46,9 +53,9 @@ fun LeaderboardScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = contentPadding)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(headerSpacing))
                 
                 // Centered Header
                 Column(
@@ -57,7 +64,7 @@ fun LeaderboardScreen(
                 ) {
                     Text(
                         text = Constants.TITLE_LEADERBOARD,
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = if (screenWidth < 360.dp) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -70,18 +77,25 @@ fun LeaderboardScreen(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        fontSize = if (screenWidth < 360.dp) 10.sp else 12.sp
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(headerSpacing))
 
                 // Search Bar
                 OutlinedTextField(
                     value = uiState.searchQuery,
                     onValueChange = { viewModel.onSearchQueryChanged(it) },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search members...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 14.sp) },
+                    placeholder = {
+                        Text(
+                            "Search members...",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            fontSize = if (screenWidth < 360.dp) 12.sp else 14.sp
+                        )
+                    },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
                     trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
                         {
@@ -100,16 +114,15 @@ fun LeaderboardScreen(
                         focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                         unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                     ),
-                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
+                    textStyle = LocalTextStyle.current.copy(fontSize = if (screenWidth < 360.dp) 12.sp else 14.sp)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(headerSpacing))
                 
-                // Type Selection using FlowRow for responsiveness
-                FlowRow(
+                // Type Selection
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ElysiumFilterChip(
                         modifier = Modifier.weight(1f),
@@ -128,11 +141,13 @@ fun LeaderboardScreen(
                 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Sub-Filter Selection using FlowRow
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                // Sub-Filter Selection
+                val subFilterScrollState = rememberScrollState()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(subFilterScrollState),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     if (uiState.leaderboardType == LeaderboardType.ATTENDANCE) {
                         LeaderboardPeriod.entries.forEach { period ->
@@ -176,35 +191,37 @@ fun LeaderboardScreen(
                             ) {
                                 Text(
                                     text = if (uiState.searchQuery.isEmpty()) "No data available" else "No members found matching \"${uiState.searchQuery}\"",
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(16.dp)
                                 )
                             }
                         }
 
                         else -> {
+                            val sortedList = uiState.sortedLeaderboard
                             if (uiState.searchQuery.isEmpty()) {
-                                Column {
-                                    LeaderboardPodium(
-                                        topThree = uiState.filteredLeaderboard.take(3),
-                                        leaderboardType = uiState.leaderboardType,
-                                        pointsFilter = uiState.selectedPointsFilter
-                                    )
+                                LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(bottom = 24.dp)
+                                ) {
+                                    item {
+                                        LeaderboardPodium(
+                                            topThree = sortedList.take(3),
+                                            leaderboardType = uiState.leaderboardType,
+                                            pointsFilter = uiState.selectedPointsFilter
+                                        )
+                                        Spacer(modifier = Modifier.height(24.dp))
+                                    }
 
-                                    Spacer(modifier = Modifier.height(24.dp))
-
-                                    LazyColumn(
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(bottom = 24.dp)
-                                    ) {
-                                        items(uiState.filteredLeaderboard.drop(3)) { member ->
-                                            LeaderboardMemberCard(
-                                                member = member,
-                                                rank = uiState.filteredLeaderboard.indexOf(member) + 1,
-                                                type = uiState.leaderboardType,
-                                                pointsFilter = uiState.selectedPointsFilter
-                                            )
-                                        }
+                                    items(sortedList.drop(3)) { member ->
+                                        LeaderboardMemberCard(
+                                            member = member,
+                                            rank = sortedList.indexOf(member) + 1,
+                                            type = uiState.leaderboardType,
+                                            pointsFilter = uiState.selectedPointsFilter
+                                        )
                                     }
                                 }
                             } else {
@@ -216,7 +233,7 @@ fun LeaderboardScreen(
                                     items(uiState.filteredLeaderboard) { member ->
                                         LeaderboardMemberCard(
                                             member = member,
-                                            rank = uiState.filteredLeaderboard.indexOf(member) + 1,
+                                            rank = sortedList.indexOf(member) + 1,
                                             type = uiState.leaderboardType,
                                             pointsFilter = uiState.selectedPointsFilter
                                         )

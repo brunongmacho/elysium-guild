@@ -1,33 +1,62 @@
 package com.elysium.guild.repository
 
+import android.util.Log
+import com.elysium.guild.database.EventsDao
 import com.elysium.guild.models.*
 import com.elysium.guild.network.ElysiumApiService
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class EventsRepository @Inject constructor(
-    private val apiService: ElysiumApiService
+    private val apiService: ElysiumApiService,
+    private val eventsDao: EventsDao
 ) {
     
     suspend fun getEvents(): List<GuildEvent> {
         return try {
             val response = apiService.getEvents()
             val apiEvents = if (response.isSuccessful && response.body()?.success == true) {
-                response.body()?.data?.events ?: emptyList()
+                val events = response.body()?.data?.events ?: emptyList()
+                saveEventsToLocal(events)
+                events
             } else {
-                emptyList()
+                Log.w("EventsRepository", "API response unsuccessful, trying cache")
+                getCachedEvents()
             }
 
-            // If API returns no events, provide the guild's standard schedule
+            // If API and cache return no events, provide the guild's standard schedule
             if (apiEvents.isEmpty()) {
                 getMockEvents()
             } else {
                 apiEvents
             }
         } catch (e: Exception) {
-            getMockEvents()
+            Log.e("EventsRepository", "Error fetching events, using cache/mock", e)
+            val cached = getCachedEvents()
+            if (cached.isEmpty()) getMockEvents() else cached
+        }
+    }
+
+    private suspend fun getCachedEvents(): List<GuildEvent> {
+        return try {
+            val entities = eventsDao.getAllEvents().first()
+            entities.map { it.toDomainModel() }
+        } catch (e: Exception) {
+            Log.e("EventsRepository", "Failed to fetch events from cache", e)
+            emptyList()
+        }
+    }
+
+    private suspend fun saveEventsToLocal(events: List<GuildEvent>) {
+        try {
+            val entities = events.map { it.toEntity() }
+            eventsDao.clearAll()
+            eventsDao.insertAll(entities)
+        } catch (e: Exception) {
+            Log.e("EventsRepository", "Failed to save events to cache", e)
         }
     }
 
@@ -83,8 +112,6 @@ class EventsRepository @Inject constructor(
 
         // If the event today has already passed, move to the next occurrence
         if (instant < Clock.System.now()) {
-            // For daily events, just add a day. For others, it's handled by getNextDayOfWeek usually,
-            // but we add a safety check here.
             val nextDay = date.plus(1, DateTimeUnit.DAY)
             eventDateTime = LocalDateTime(nextDay.year, nextDay.month, nextDay.dayOfMonth, hour, minute)
             instant = eventDateTime.toInstant(tz)
@@ -103,8 +130,6 @@ class EventsRepository @Inject constructor(
 
     private fun getNextDayOfWeek(today: LocalDate, allowedDays: List<DayOfWeek>): LocalDate {
         var current = today
-        // Check if today is an allowed day and if we have a special case,
-        // but for simplicity in mock, we just find the nearest upcoming allowed day including today
         repeat(7) {
             if (allowedDays.contains(current.dayOfWeek)) {
                 return current
@@ -113,4 +138,29 @@ class EventsRepository @Inject constructor(
         }
         return today
     }
+}
+
+// Extension functions for mapping between Domain and Entity models
+fun GuildEvent.toEntity(): EventEntity {
+    return EventEntity(
+        id = this.id,
+        name = this.name,
+        type = this.type.name,
+        startTime = this.startTime,
+        endTime = this.endTime,
+        description = this.description,
+        reminderSet = this.reminderSet
+    )
+}
+
+fun EventEntity.toDomainModel(): GuildEvent {
+    return GuildEvent(
+        id = this.id,
+        name = this.name,
+        type = try { EventType.valueOf(this.type) } catch(e: Exception) { EventType.SPECIAL_EVENT },
+        startTime = this.startTime,
+        endTime = this.endTime,
+        description = this.description,
+        reminderSet = this.reminderSet
+    )
 }

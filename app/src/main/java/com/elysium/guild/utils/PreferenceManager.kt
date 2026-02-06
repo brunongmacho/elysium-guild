@@ -32,6 +32,9 @@ class PreferenceManager @Inject constructor(
 
     private val _floatingBubbleEnabled = MutableStateFlow(prefs.getBoolean(Constants.KEY_FLOATING_BUBBLE_ENABLED, false))
     val floatingBubbleEnabled: StateFlow<Boolean> = _floatingBubbleEnabled.asStateFlow()
+    
+    private val _useLocalTimezone = MutableStateFlow(prefs.getBoolean(Constants.KEY_USE_LOCAL_TIMEZONE, false))
+    val useLocalTimezone: StateFlow<Boolean> = _useLocalTimezone.asStateFlow()
 
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
         when (key) {
@@ -41,6 +44,7 @@ class PreferenceManager @Inject constructor(
             Constants.KEY_BOSS_SPAWN_ALERTS -> _bossNotificationsEnabled.value = sharedPrefs.getBoolean(key, true)
             Constants.KEY_EVENT_REMINDERS -> _eventNotificationsEnabled.value = sharedPrefs.getBoolean(key, true)
             Constants.KEY_FLOATING_BUBBLE_ENABLED -> _floatingBubbleEnabled.value = sharedPrefs.getBoolean(key, false)
+            Constants.KEY_USE_LOCAL_TIMEZONE -> _useLocalTimezone.value = sharedPrefs.getBoolean(key, false)
         }
     }
 
@@ -74,5 +78,9 @@ class PreferenceManager @Inject constructor(
 
     fun setFloatingBubbleEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(Constants.KEY_FLOATING_BUBBLE_ENABLED, enabled).apply()
+    }
+    
+    fun setUseLocalTimezone(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.KEY_USE_LOCAL_TIMEZONE, enabled).apply()
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +36,7 @@ import java.util.Locale
 fun EventCard(
     event: GuildEvent,
     currentTime: State<Instant>,
+    useLocalTimezone: Boolean = false,
     onReminderClick: (GuildEvent) -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
@@ -86,8 +88,8 @@ fun EventCard(
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        val formattedTime = remember(event.startTime) {
-                            UIUtils.formatEventTime(event.startTime)
+                        val formattedTime = remember(event.startTime, useLocalTimezone) {
+                            UIUtils.formatEventTime(event.startTime, useLocalTimezone)
                         }
                         Text(
                             text = formattedTime,
@@ -134,7 +136,6 @@ fun EventCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ElysiumFilterChip(
     selected: Boolean,
@@ -147,8 +148,7 @@ fun ElysiumFilterChip(
     val isDark = isSystemInDarkTheme()
     
     Surface(
-        onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         color = if (selected) selectedColor.copy(alpha = if (isDark) 0.25f else 0.15f) 
                 else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),

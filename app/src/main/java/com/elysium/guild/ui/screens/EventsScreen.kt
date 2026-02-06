@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.elysium.guild.ui.components.*
 import com.elysium.guild.ui.theme.ElysiumGuildTheme
+import com.elysium.guild.utils.PreferenceManager
 import com.elysium.guild.viewmodel.EventsViewModel
 import com.elysium.guild.utils.Constants
 
@@ -29,10 +30,12 @@ import com.elysium.guild.utils.Constants
 @Composable
 fun EventsScreen(
     navController: NavController,
-    viewModel: EventsViewModel = hiltViewModel()
+    viewModel: EventsViewModel = hiltViewModel(),
+    preferenceManager: PreferenceManager
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentTime = viewModel.currentTime.collectAsState()
+    val useLocalTimezone by preferenceManager.useLocalTimezone.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
     
     LaunchedEffect(Unit) {
@@ -118,6 +121,7 @@ fun EventsScreen(
                                     EventCard(
                                         event = event,
                                         currentTime = currentTime,
+                                        useLocalTimezone = useLocalTimezone,
                                         onReminderClick = { viewModel.toggleReminder(event) }
                                     )
                                 }

@@ -52,10 +52,10 @@ fun ElysiumNavigation(
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(Screen.BossTimers.route) {
-                BossTimersScreen(navController)
+                BossTimersScreen(navController, preferenceManager = preferenceManager)
             }
             composable(Screen.Events.route) {
-                EventsScreen(navController)
+                EventsScreen(navController, preferenceManager = preferenceManager)
             }
             composable(Screen.Leaderboard.route) {
                 LeaderboardScreen(navController)

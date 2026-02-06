@@ -160,18 +160,18 @@ data class MemberProfileResponse(
 data class BossTimerEntity(
     @PrimaryKey val id: String,
     val name: String,
-    val alias: String,
     val points: Int,
-    val nextSpawn: String?,
-    val lastKilled: String?,
+    val type: String,
+    val nextSpawnTime: String?,
     val status: String,
-    val interval: Int?,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val isRotating: Boolean,
+    val currentGuild: String?
 )
 
-@Entity(tableName = "leaderboard")
+@Entity(tableName = "leaderboard", primaryKeys = ["memberId", "type", "period"])
 data class LeaderboardEntryEntity(
-    @PrimaryKey val memberId: String,
+    val memberId: String,
     val memberName: String,
     val avatarUrl: String?,
     val totalPoints: Int,
@@ -181,6 +181,7 @@ data class LeaderboardEntryEntity(
     val weeklyRank: Int,
     val role: String,
     val type: String,
+    val period: String, // added to distinguish weekly/monthly/all_time
     val lastUpdated: String
 )
 

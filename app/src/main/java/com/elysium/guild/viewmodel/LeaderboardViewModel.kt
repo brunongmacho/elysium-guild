@@ -6,6 +6,8 @@ import com.elysium.guild.models.*
 import com.elysium.guild.repository.LeaderboardRepository
 import com.elysium.guild.repository.BossTimersRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +35,8 @@ class LeaderboardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LeaderboardUiState())
     val uiState: StateFlow<LeaderboardUiState> = _uiState.asStateFlow()
     
+    private var refreshJob: Job? = null
+    
     init {
         refreshLeaderboard()
         observeBossDataChanges()
@@ -46,17 +50,23 @@ class LeaderboardViewModel @Inject constructor(
         }
     }
     
-    fun refreshLeaderboard() {
-        viewModelScope.launch {
-            if (_uiState.value.isLoading || _uiState.value.isRefreshing) return@launch
-
+    fun refreshLeaderboard(isFilterChange: Boolean = false) {
+        // Cancel any existing refresh job to handle rapid filter changes
+        refreshJob?.cancel()
+        
+        refreshJob = viewModelScope.launch {
             val isInitial = _uiState.value.attendanceLeaderboard.isEmpty() && _uiState.value.pointsLeaderboard.isEmpty()
             
-            if (isInitial) {
+            // Set loading state
+            if (isInitial || isFilterChange) {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             } else {
                 _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
             }
+            
+            // Artificial delay to make transitions feel intentional and smooth
+            // and to prevent UI flickering on very fast responses
+            if (isFilterChange) delay(300)
             
             try {
                 when (_uiState.value.leaderboardType) {
@@ -79,19 +89,29 @@ class LeaderboardViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isRefreshing = false,
-                    error = e.message ?: "Failed to load leaderboard"
-                )
+                // Check if the coroutine was cancelled (by a new filter click)
+                // If it was cancelled, we don't want to update the UI state with an error
+                if (e !is kotlinx.coroutines.CancellationException) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isRefreshing = false,
+                        error = e.message ?: "Failed to load leaderboard"
+                    )
+                }
             }
         }
     }
     
     fun setLeaderboardType(type: LeaderboardType) {
         if (type != _uiState.value.leaderboardType) {
-            _uiState.value = _uiState.value.copy(leaderboardType = type, searchQuery = "")
-            refreshLeaderboard()
+            _uiState.value = _uiState.value.copy(
+                leaderboardType = type, 
+                searchQuery = "",
+                // Clear existing data to ensure a fresh load look
+                attendanceLeaderboard = if (type == LeaderboardType.ATTENDANCE) emptyList() else _uiState.value.attendanceLeaderboard,
+                pointsLeaderboard = if (type == LeaderboardType.POINTS) emptyList() else _uiState.value.pointsLeaderboard
+            )
+            refreshLeaderboard(isFilterChange = true)
         }
     }
 
@@ -99,14 +119,21 @@ class LeaderboardViewModel @Inject constructor(
         if (period != _uiState.value.selectedPeriod) {
             _uiState.value = _uiState.value.copy(
                 selectedPeriod = period, 
-                searchQuery = ""
+                searchQuery = "",
+                attendanceLeaderboard = emptyList() // Force loading state
             )
-            refreshLeaderboard()
+            refreshLeaderboard(isFilterChange = true)
         }
     }
 
     fun setPointsFilter(filter: PointsFilter) {
-        _uiState.value = _uiState.value.copy(selectedPointsFilter = filter)
+        if (filter != _uiState.value.selectedPointsFilter) {
+            _uiState.value = _uiState.value.copy(
+                selectedPointsFilter = filter,
+                pointsLeaderboard = emptyList() // Force loading state
+            )
+            refreshLeaderboard(isFilterChange = true)
+        }
     }
 
     fun onSearchQueryChanged(query: String) {
@@ -125,9 +152,9 @@ data class LeaderboardUiState(
     val searchQuery: String = "",
     val error: String? = null
 ) {
-    val filteredLeaderboard: List<LeaderboardEntry>
+    val sortedLeaderboard: List<LeaderboardEntry>
         get() {
-            val list = if (leaderboardType == LeaderboardType.ATTENDANCE) {
+            return if (leaderboardType == LeaderboardType.ATTENDANCE) {
                 attendanceLeaderboard
             } else {
                 when (selectedPointsFilter) {
@@ -136,7 +163,11 @@ data class LeaderboardUiState(
                     PointsFilter.AVAILABLE -> pointsLeaderboard.sortedByDescending { it.pointsAvailable }
                 }
             }
+        }
 
+    val filteredLeaderboard: List<LeaderboardEntry>
+        get() {
+            val list = sortedLeaderboard
             return if (searchQuery.isBlank()) {
                 list
             } else {

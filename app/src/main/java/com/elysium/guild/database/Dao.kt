@@ -26,14 +26,14 @@ interface BossTimerDao {
 @Dao
 interface LeaderboardDao {
     
-    @Query("SELECT * FROM leaderboard WHERE type = :type ORDER BY weeklyRank ASC")
-    fun getLeaderboardByType(type: String): Flow<List<LeaderboardEntryEntity>>
+    @Query("SELECT * FROM leaderboard WHERE type = :type AND period = :period ORDER BY weeklyRank ASC")
+    fun getLeaderboardByTypeAndPeriod(type: String, period: String): Flow<List<LeaderboardEntryEntity>>
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(entries: List<LeaderboardEntryEntity>): List<Long>
     
-    @Query("DELETE FROM leaderboard WHERE type = :type")
-    suspend fun clearByType(type: String): Int
+    @Query("DELETE FROM leaderboard WHERE type = :type AND period = :period")
+    suspend fun clearByTypeAndPeriod(type: String, period: String): Int
 }
 
 @Dao
