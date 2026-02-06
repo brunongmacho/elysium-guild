@@ -41,9 +41,8 @@ fun EventCard(
 ) {
     val isDark = isSystemInDarkTheme()
     
-    val targetColor = remember(event.startTime, currentTime.value, isDark) {
-        val diffMs = try { (Instant.parse(event.startTime) - currentTime.value).inWholeMilliseconds } catch(e: Exception) { null }
-        UIUtils.getStatusColor(null, diffMs, isDark)
+    val targetColor = remember(event.startTime, event.endTime, currentTime.value, isDark) {
+        UIUtils.getEventStatusColor(event.startTime, event.endTime, currentTime.value, isDark)
     }
 
     val animatedColor by animateColorAsState(
@@ -107,8 +106,8 @@ fun EventCard(
                 lineHeight = MaterialTheme.typography.bodySmall.lineHeight
             )
 
-            val countdown = remember(event.startTime, currentTime.value) {
-                UIUtils.calculateCountdown(event.startTime, currentTime.value)
+            val countdown = remember(event.startTime, event.endTime, currentTime.value) {
+                UIUtils.calculateEventCountdown(event.startTime, event.endTime, currentTime.value)
             }
 
             if (countdown.isNotEmpty()) {

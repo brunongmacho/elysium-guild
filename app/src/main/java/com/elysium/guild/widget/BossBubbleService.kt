@@ -33,6 +33,7 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -82,13 +83,16 @@ class BossBubbleService : Service() {
     private var screenHeight = 0
     private var bubbleIcon: ImageView? = null
     private var timerLayout: View? = null
+    private var headerContainer: LinearLayout? = null
     private var timerListContainer: LinearLayout? = null
+    private var timerScrollView: ScrollView? = null
     
     private var lastStableX = 0
     private var lastStableY = -1
     private var isExpanded = false
     private var isAnimating = false
     private var currentAppTheme: Int = Constants.THEME_SYSTEM
+    private var useLocalTimezone: Boolean = false
 
     private lateinit var prefs: SharedPreferences
 
@@ -96,6 +100,16 @@ class BossBubbleService : Service() {
         const val ACTION_SHOW = "com.elysium.guild.SHOW_BUBBLE"
         const val ACTION_HIDE = "com.elysium.guild.HIDE_BUBBLE"
         private const val TAG = "BossBubbleService"
+
+        // Readable Colors for Bosses
+        private const val COLOR_BOSS_READY = "#00FF88" // Vibrant Green
+        private const val COLOR_BOSS_SOON = "#FFBB33"  // Vibrant Amber
+        private const val COLOR_BOSS_TRACKING = "#818CF8" // Soft Indigo
+
+        // Readable Colors for Events
+        private const val COLOR_EVENT_READY = "#00E5FF" // Bright Cyan
+        private const val COLOR_EVENT_SOON = "#FF7043"  // Vibrant Deep Orange
+        private const val COLOR_EVENT_NORMAL = "#448AFF" // Bright Blue
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -125,7 +139,7 @@ class BossBubbleService : Service() {
             setupFloatingView()
             setupCloseView()
             observeDataChanges()
-            observeThemeChanges()
+            observeSettingsChanges()
             startPeriodicUpdates()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create service: ${e.message}")
@@ -147,6 +161,7 @@ class BossBubbleService : Service() {
             }
         }
         updateCloseViewPosition()
+        updateTimerDisplay()
     }
 
     private fun updateScreenDimensions() {
@@ -240,6 +255,14 @@ class BossBubbleService : Service() {
             bubbleIcon = floatingView?.findViewById(R.id.bubble_icon)
             timerLayout = floatingView?.findViewById(R.id.timer_list_container)
             
+            headerContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
             timerListContainer = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(
@@ -247,9 +270,21 @@ class BossBubbleService : Service() {
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
             }
-            (timerLayout as? LinearLayout)?.apply {
-                removeAllViews()
+            
+            timerScrollView = ScrollView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
                 addView(timerListContainer)
+                isVerticalScrollBarEnabled = true
+            }
+
+            (timerLayout as? LinearLayout)?.apply {
+                orientation = LinearLayout.VERTICAL
+                removeAllViews()
+                addView(headerContainer)
+                addView(timerScrollView)
             }
 
             val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -661,12 +696,20 @@ class BossBubbleService : Service() {
         fetchData()
     }
 
-    private fun observeThemeChanges() {
+    private fun observeSettingsChanges() {
         serviceScope.launch {
             preferenceManager.themeMode.collectLatest { mode ->
                 currentAppTheme = mode
                 if (isExpanded) {
                     applyThemeToWindow()
+                    updateTimerDisplay()
+                }
+            }
+        }
+        serviceScope.launch {
+            preferenceManager.useLocalTimezone.collectLatest { useLocal ->
+                useLocalTimezone = useLocal
+                if (isExpanded) {
                     updateTimerDisplay()
                 }
             }
@@ -746,17 +789,22 @@ class BossBubbleService : Service() {
     private fun updateTimerDisplay() {
         if (!isExpanded) return
         val container = timerListContainer ?: return
+        val hContainer = headerContainer ?: return
+        val scrollView = timerScrollView ?: return
         container.removeAllViews()
+        hContainer.removeAllViews()
 
         val now = Clock.System.now()
-        val tz = TimeZone.of("Asia/Manila")
+        val tz = if (useLocalTimezone) TimeZone.currentSystemDefault() else TimeZone.of("Asia/Manila")
         val today = now.toLocalDateTime(tz).date
 
         val todayBosses = currentBosses.filter { boss ->
             boss.nextSpawnTime?.let {
                 try {
-                    val spawnDate = Instant.parse(it).toLocalDateTime(tz).date
-                    spawnDate == today
+                    val spawnInstant = Instant.parse(it)
+                    val spawnDate = spawnInstant.toLocalDateTime(tz).date
+                    val diff = (spawnInstant - now).inWholeSeconds
+                    spawnDate == today || (diff >= Constants.BUBBLE_SPAWNED_GRACE_PERIOD_SECONDS && diff < 0)
                 } catch (e: Exception) { false }
             } ?: false
         }.map { boss ->
@@ -766,41 +814,75 @@ class BossBubbleService : Service() {
 
         val todayEvents = currentEvents.filter { event ->
             try {
-                val eventDate = Instant.parse(event.startTime).toLocalDateTime(tz).date
-                eventDate == today
+                val startInstant = Instant.parse(event.startTime)
+                val startDate = startInstant.toLocalDateTime(tz).date
+                val diff = (startInstant - now).inWholeSeconds
+                
+                val endInstant = event.endTime?.let { Instant.parse(it) }
+                val isRunning = endInstant?.let { now < it && now >= startInstant } ?: false
+                val isToday = startDate == today
+                
+                isToday || isRunning || (diff >= Constants.BUBBLE_SPAWNED_GRACE_PERIOD_SECONDS && diff < 0)
             } catch (e: Exception) { false }
         }.map { event ->
-            val diff = (Instant.parse(event.startTime) - now).inWholeSeconds
+            val startInstant = Instant.parse(event.startTime)
+            val endInstant = event.endTime?.let { Instant.parse(it) }
+            val isRunning = endInstant?.let { now < it && now >= startInstant } ?: false
+            
+            val diff = if (isRunning) 0L else (startInstant - now).inWholeSeconds
             Triple(event.name, diff, false)
         }
 
         val allItems = (todayBosses + todayEvents)
-            .filter { it.second > Constants.BUBBLE_SPAWNED_GRACE_PERIOD_SECONDS }
-            .sortedBy { if (it.second > 0) it.second else Long.MAX_VALUE }
+            .sortedWith(compareBy<Triple<String, Long, Boolean>> { it.second > 0 }
+                .thenBy { if (it.second <= 0) -it.second else it.second })
 
         val isDark = isDarkMode()
         val textColor = if (isDark) Color.WHITE else Color.BLACK
-        val subTextColor = if (isDark) Color.parseColor("#B0FFFFFF") else Color.parseColor("#B0000000")
+        val subTextColor = if (isDark) Color.parseColor("#E0E0E0") else Color.parseColor("#424242")
 
         if (allItems.isEmpty()) {
-            addTimerRow(container, "No activities today", textColor)
+            addTimerRow(hContainer, "No activities today", textColor)
+            scrollView.layoutParams.height = 0
         } else {
-            addTimerRow(container, "Today's Schedule", ContextCompat.getColor(this, R.color.primary), isHeader = true)
-            addTimerRow(container, "Bosses and guild events", subTextColor, isSubtitle = true)
+            val titleColor = ContextCompat.getColor(this, R.color.primary)
+            addTimerRow(hContainer, "Today's Schedule", titleColor, isHeader = true)
+            addTimerRow(hContainer, "Bosses and guild events", subTextColor, isSubtitle = true)
             
-            allItems.take(Constants.BUBBLE_MAX_ITEMS).forEach { (name, diff, isBoss) ->
+            val displayedItems = allItems.take(Constants.BUBBLE_MAX_ITEMS)
+            displayedItems.forEach { (name, diff, isBoss) ->
                 val timeStr = formatCountdown(diff)
-
-                val colorVal = if (isBoss) {
-                    ContextCompat.getColor(this, UIUtils.getBubbleStatusColorRes(diff))
+                
+                val colorHex = if (isBoss) {
+                    when {
+                        diff <= 0 -> COLOR_BOSS_READY
+                        diff <= Constants.SPAWNING_SOON_THRESHOLD_MINUTES * 60 -> COLOR_BOSS_SOON
+                        else -> COLOR_BOSS_TRACKING
+                    }
                 } else {
-                    if (diff <= 0) ContextCompat.getColor(this, R.color.success) else ContextCompat.getColor(this, R.color.secondary)
+                    when {
+                        diff <= 0 -> COLOR_EVENT_READY
+                        diff <= Constants.SPAWNING_SOON_THRESHOLD_MINUTES * 60 -> COLOR_EVENT_SOON
+                        else -> COLOR_EVENT_NORMAL
+                    }
                 }
                 
+                val colorVal = Color.parseColor(colorHex)
                 val fullText = "$name: $timeStr"
                 addTimerRow(container, fullText, colorVal, boldSpanEnd = name.length)
             }
+
+            val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+            val maxVisible = if (isPortrait) Constants.BUBBLE_PORTRAIT_MAX_ITEMS else Constants.BUBBLE_LANDSCAPE_MAX_ITEMS
+            
+            if (displayedItems.size > maxVisible) {
+                val estimatedHeight = maxVisible * Constants.BUBBLE_ROW_ESTIMATED_HEIGHT_DP
+                scrollView.layoutParams.height = dpToPx(estimatedHeight)
+            } else {
+                scrollView.layoutParams.height = LinearLayout.LayoutParams.WRAP_CONTENT
+            }
         }
+        scrollView.requestLayout()
     }
 
     private fun addTimerRow(container: LinearLayout, text: String, colorVal: Int, isHeader: Boolean = false, isSubtitle: Boolean = false, boldSpanEnd: Int = -1) {
@@ -826,7 +908,12 @@ class BossBubbleService : Service() {
             val bottomPadding = if (isSubtitle) 12 else 4
             this.setPadding(dpToPx(Constants.BUBBLE_ROW_PADDING_HORIZONTAL_DP), dpToPx(topPadding), dpToPx(Constants.BUBBLE_ROW_PADDING_HORIZONTAL_DP), dpToPx(bottomPadding))
             
-            this.typeface = if (isHeader) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            // Readability enhancements
+            this.typeface = if (isHeader) Typeface.create("sans-serif-black", Typeface.BOLD) else Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            
+            // Text Shadow for readability against busy backgrounds
+            setShadowLayer(3f, 2f, 2f, Color.parseColor("#AA000000"))
+
             this.gravity = if (isHeader || isSubtitle) Gravity.CENTER_HORIZONTAL else Gravity.START
             this.layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,

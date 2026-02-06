@@ -68,61 +68,63 @@ class EventsRepository @Inject constructor(
         return listOf(
             createGuildEvent(
                 "1", "World Boss Event (Morning)", EventType.WORLD_BOSS,
-                today, 11, 0, "Daily World Boss - 11:00 AM (30m duration)"
+                today, 11, 0, 30, "Daily World Boss - 11:00 AM (30m duration)"
             ),
             createGuildEvent(
                 "2", "World Boss Event (Evening)", EventType.WORLD_BOSS,
-                today, 20, 0, "Daily World Boss - 8:00 PM (30m duration)"
+                today, 20, 0, 30, "Daily World Boss - 8:00 PM (30m duration)"
             ),
             createGuildEvent(
                 "3", "Individual Arena", EventType.ARENA_BATTLE,
                 getNextDayOfWeek(today, listOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)),
-                20, 30, "Mon, Wed, Fri Arena Battle - 8:30 PM (60m duration)"
+                20, 30, 60, "Mon, Wed, Fri Arena Battle - 8:30 PM (60m duration)"
             ),
             createGuildEvent(
                 "4", "Guild Boss", EventType.GUILD_BOSS,
                 getNextDayOfWeek(today, listOf(DayOfWeek.MONDAY)),
-                21, 0, "Monday Guild Boss - 9:00 PM (5m duration)"
+                21, 0, 5, "Monday Guild Boss - 9:00 PM (5m duration)"
             ),
             createGuildEvent(
                 "5", "Coop Round Arena", EventType.ARENA_BATTLE,
                 getNextDayOfWeek(today, listOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.SATURDAY)),
-                20, 30, "Tue, Thu, Sat Coop Arena - 8:30 PM (60m duration)"
+                20, 30, 60, "Tue, Thu, Sat Coop Arena - 8:30 PM (60m duration)"
             ),
             createGuildEvent(
                 "6", "Guild War Queue Reminder", EventType.SPECIAL_EVENT,
                 getNextDayOfWeek(today, listOf(DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY)),
-                23, 0, "Thu, Fri, Sat GvG Queue - 11:00 PM (120m duration)"
+                23, 0, 120, "Thu, Fri, Sat GvG Queue - 11:00 PM (120m duration)"
             ),
             createGuildEvent(
                 "7", "GvG / Guild War", EventType.GVG,
                 getNextDayOfWeek(today, listOf(DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)),
-                20, 25, "Fri, Sat, Sun Guild War - 8:25 PM (3m duration)"
+                20, 25, 3, "Fri, Sat, Sun Guild War - 8:25 PM (3m duration)"
             )
         ).sortedBy { it.startTime }
     }
 
     private fun createGuildEvent(
         id: String, name: String, type: EventType,
-        date: LocalDate, hour: Int, minute: Int, description: String
+        date: LocalDate, hour: Int, minute: Int, durationMinutes: Int, description: String
     ): GuildEvent {
         val tz = TimeZone.of("Asia/Manila")
-        var eventDateTime = LocalDateTime(date.year, date.month, date.dayOfMonth, hour, minute)
-        var instant = eventDateTime.toInstant(tz)
+        val eventDateTime = LocalDateTime(date.year, date.month, date.dayOfMonth, hour, minute)
+        var startInstant = eventDateTime.toInstant(tz)
+        var endInstant = startInstant.plus(durationMinutes, DateTimeUnit.MINUTE)
 
-        // If the event today has already passed, move to the next occurrence
-        if (instant < Clock.System.now()) {
+        // If the event has already ended today, move to the next occurrence
+        if (endInstant < Clock.System.now()) {
             val nextDay = date.plus(1, DateTimeUnit.DAY)
-            eventDateTime = LocalDateTime(nextDay.year, nextDay.month, nextDay.dayOfMonth, hour, minute)
-            instant = eventDateTime.toInstant(tz)
+            val nextEventDateTime = LocalDateTime(nextDay.year, nextDay.month, nextDay.dayOfMonth, hour, minute)
+            startInstant = nextEventDateTime.toInstant(tz)
+            endInstant = startInstant.plus(durationMinutes, DateTimeUnit.MINUTE)
         }
 
         return GuildEvent(
             id = id,
             name = name,
             type = type,
-            startTime = instant.toString(),
-            endTime = null,
+            startTime = startInstant.toString(),
+            endTime = endInstant.toString(),
             description = description,
             reminderSet = false
         )

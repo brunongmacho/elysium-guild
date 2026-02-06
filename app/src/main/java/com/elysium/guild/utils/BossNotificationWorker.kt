@@ -30,6 +30,8 @@ class BossNotificationWorker @AssistedInject constructor(
         Log.d("BossWorker", "Worker execution started - Scheduling precise alarms")
         
         return try {
+            val now = Clock.System.now()
+
             // 1. Handle Boss Notifications (if enabled)
             if (preferenceManager.bossNotificationsEnabled.value) {
                 val bosses = bossRepository.getBossTimers()
@@ -47,8 +49,15 @@ class BossNotificationWorker @AssistedInject constructor(
                 events.forEach { event ->
                     val startTimeStr = event.startTime ?: return@forEach
                     val startTime = try { Instant.parse(startTimeStr) } catch (e: Exception) { return@forEach }
+                    val endTime = event.endTime?.let { try { Instant.parse(it) } catch(e: Exception) { null } }
                     
-                    scheduleAlarmSafely(event.name, startTime, Constants.DEFAULT_NOTIFICATION_OFFSET_MINUTES, isEvent = true)
+                    // If event is currently running (now is between start and end), 
+                    // we don't schedule a start notification, but we maintain the 'READY' status in UI.
+                    val isRunning = endTime?.let { now >= startTime && now < it } ?: false
+                    
+                    if (!isRunning) {
+                        scheduleAlarmSafely(event.name, startTime, Constants.DEFAULT_NOTIFICATION_OFFSET_MINUTES, isEvent = true)
+                    }
                 }
             }
 
@@ -100,11 +109,13 @@ class BossNotificationWorker @AssistedInject constructor(
             // Final fallback: non-exact, non-idle-aware
             alarmManager.set(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
         } catch (e: Exception) {
-            Log.e("BossWorker", "Failed to schedule alarm: ${e.message}")
+            Log.e(TAG, "Failed to schedule alarm: ${e.message}")
         }
     }
 
     companion object {
+        private const val TAG = "BossNotificationWorker"
+
         fun schedule(context: Context) {
             val workManager = WorkManager.getInstance(context)
 

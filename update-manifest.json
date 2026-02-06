@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 20,
-  "latestVersionName": "1.1.4",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.4/app-debug.apk",
-  "releaseNotes": "- Added Timezone Toggle: Switch between PHT and Local Time.\n- Stability: Updated core dependencies to stable versions.\n- Performance: Optimized background boss timer tracking.",
+  "latestVersionCode": 21,
+  "latestVersionName": "1.1.5",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.5/app-debug.apk",
+  "releaseNotes": "- Bubble Window Overhaul: Now displays all daily events with improved readability and sticky headers.\n- Scrollable Bubble: List auto-adjusts height and enables scrolling for long schedules.\n- Live Event Tracking: Events stay in 'READY' status for their entire duration.\n- Sorting Improvements: Active events and bosses now stay at the top of the list.\n- Timezone Support: Fixed bubble window to respect the local time toggle.",
   "isForceUpdate": false
 }

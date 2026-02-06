@@ -62,7 +62,12 @@ object Constants {
     const val BUBBLE_ROW_PADDING_HORIZONTAL_DP = 16
     const val BUBBLE_ROW_PADDING_VERTICAL_DP = 6
     const val BUBBLE_MAX_WIDTH_DP = 300
-    const val BUBBLE_MAX_ITEMS = 10
+    const val BUBBLE_MAX_ITEMS = 50 
+    
+    const val BUBBLE_PORTRAIT_MAX_ITEMS = 10
+    const val BUBBLE_LANDSCAPE_MAX_ITEMS = 6
+    const val BUBBLE_ROW_ESTIMATED_HEIGHT_DP = 32
+    const val BUBBLE_HEADER_ESTIMATED_HEIGHT_DP = 72
 
     // Intent Extras
     const val EXTRA_BOSS_NAME = "extra_boss_name"
@@ -141,6 +146,22 @@ object UIUtils {
         }
     }
 
+    fun getEventStatusColor(startTime: String, endTime: String?, now: Instant, isDark: Boolean, useLocalTimezone: Boolean = false): Color {
+        return try {
+            val start = Instant.parse(startTime)
+            val end = endTime?.let { Instant.parse(it) }
+            val isRunning = end?.let { now >= start && now < it } ?: (now >= start && (now - start).inWholeMinutes < 60)
+            
+            when {
+                isRunning -> Constants.COLOR_READY
+                (start - now).inWholeMinutes <= Constants.SPAWNING_SOON_THRESHOLD_MINUTES -> Constants.COLOR_SOON
+                else -> if (isDark) Constants.COLOR_TRACKING else Constants.COLOR_TRACKING_LIGHT
+            }
+        } catch (e: Exception) {
+            if (isDark) Constants.COLOR_TRACKING else Constants.COLOR_TRACKING_LIGHT
+        }
+    }
+
     fun getBubbleStatusColorRes(diffSeconds: Long): Int {
         return when {
             diffSeconds <= 0 -> R.color.boss_ready
@@ -198,6 +219,29 @@ object UIUtils {
                     hours > 0 -> "${hours}h ${minutes}m ${seconds}s"
                     else -> "${minutes}m ${seconds}s"
                 }
+            }
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    fun calculateEventCountdown(startTime: String, endTime: String?, now: Instant): String {
+        return try {
+            val start = Instant.parse(startTime)
+            val end = endTime?.let { Instant.parse(it) }
+            
+            if (end != null && now >= start && now < end) {
+                val duration = end - now
+                duration.toComponents { days, hours, minutes, seconds, _ ->
+                    val time = when {
+                        days > 0 -> "${days}d ${hours}h ${minutes}m"
+                        hours > 0 -> "${hours}h ${minutes}m"
+                        else -> "${minutes}m ${seconds}s"
+                    }
+                    "Ends in: $time"
+                }
+            } else {
+                calculateCountdown(startTime, now)
             }
         } catch (e: Exception) {
             ""

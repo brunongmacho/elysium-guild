@@ -61,8 +61,10 @@ class EventsViewModel @Inject constructor(
                 if (!isInitial) delay(500)
 
                 val events = repository.getEvents()
+                val sortedEvents = sortEvents(events, Clock.System.now())
+
                 _uiState.value = _uiState.value.copy(
-                    events = events,
+                    events = sortedEvents,
                     error = null
                 )
             } catch (e: Exception) {
@@ -76,6 +78,18 @@ class EventsViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun sortEvents(events: List<GuildEvent>, now: Instant): List<GuildEvent> {
+        return events.sortedWith(compareByDescending<GuildEvent> {
+            // Priority 1: Events that are currently running (between start and end time)
+            val start = Instant.parse(it.startTime)
+            val end = it.endTime?.let { e -> Instant.parse(e) }
+            end != null && now >= start && now < end
+        }.thenBy {
+            // Priority 2: Upcoming events sorted by start time
+            Instant.parse(it.startTime)
+        })
     }
 
     fun toggleNotifications() {
