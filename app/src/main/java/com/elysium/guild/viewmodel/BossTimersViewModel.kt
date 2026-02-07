@@ -119,7 +119,12 @@ class BossTimersViewModel @Inject constructor(
                         isLoading = false,
                         isRefreshing = false,
                         bosses = bosses,
-                        filteredBosses = applyFilter(bosses, _uiState.value.selectedFilter, _uiState.value.searchQuery)
+                        filteredBosses = applyFilter(
+                            bosses,
+                            _uiState.value.selectedFilter,
+                            _uiState.value.searchQuery,
+                            _uiState.value.onlyElysiumTurn
+                        )
                     )
                 }
                 // Emit true if this was a foreground/manual refresh, suggesting a scroll to top
@@ -142,7 +147,12 @@ class BossTimersViewModel @Inject constructor(
         val currentBosses = _uiState.value.bosses
         _uiState.value = _uiState.value.copy(
             selectedFilter = filter,
-            filteredBosses = applyFilter(currentBosses, filter, _uiState.value.searchQuery)
+            filteredBosses = applyFilter(
+                currentBosses,
+                filter,
+                _uiState.value.searchQuery,
+                _uiState.value.onlyElysiumTurn
+            )
         )
     }
 
@@ -150,7 +160,26 @@ class BossTimersViewModel @Inject constructor(
         val currentBosses = _uiState.value.bosses
         _uiState.value = _uiState.value.copy(
             searchQuery = query,
-            filteredBosses = applyFilter(currentBosses, _uiState.value.selectedFilter, query)
+            filteredBosses = applyFilter(
+                currentBosses,
+                _uiState.value.selectedFilter,
+                query,
+                _uiState.value.onlyElysiumTurn
+            )
+        )
+    }
+
+    fun toggleElysiumTurnFilter() {
+        val next = !_uiState.value.onlyElysiumTurn
+        val currentBosses = _uiState.value.bosses
+        _uiState.value = _uiState.value.copy(
+            onlyElysiumTurn = next,
+            filteredBosses = applyFilter(
+                currentBosses,
+                _uiState.value.selectedFilter,
+                _uiState.value.searchQuery,
+                next
+            )
         )
     }
 
@@ -172,9 +201,15 @@ class BossTimersViewModel @Inject constructor(
         }
     }
     
-    private fun applyFilter(bosses: List<BossTimer>, filter: String, searchQuery: String): List<BossTimer> {
+    private fun applyFilter(
+        bosses: List<BossTimer>,
+        filter: String,
+        searchQuery: String,
+        onlyElysiumTurn: Boolean
+    ): List<BossTimer> {
         val thirtyMinutesMs = 30 * 60 * 1000L
-        val filteredByStatus = when (filter) {
+
+        var result = when (filter) {
             "All" -> bosses
             "Ready" -> bosses.filter { it.status == "ready" || it.status == "overdue" || (it.timeRemaining ?: 1) <= 0 }
             "Soon" -> bosses.filter { 
@@ -188,7 +223,12 @@ class BossTimersViewModel @Inject constructor(
             }
             else -> bosses
         }
-        return if (searchQuery.isBlank()) filteredByStatus else filteredByStatus.filter { it.bossName.contains(searchQuery, ignoreCase = true) }
+
+        if (onlyElysiumTurn) {
+            result = result.filter { it.rotation?.isOurTurn == true }
+        }
+
+        return if (searchQuery.isBlank()) result else result.filter { it.bossName.contains(searchQuery, ignoreCase = true) }
     }
 }
 
@@ -199,6 +239,7 @@ data class BossTimersUiState(
     val filteredBosses: List<BossTimer> = emptyList(),
     val selectedFilter: String = "All",
     val searchQuery: String = "",
+    val onlyElysiumTurn: Boolean = false,
     val notificationsEnabled: Boolean = true,
     val error: String? = null
 )

@@ -18,7 +18,7 @@ class PreferenceManager @Inject constructor(
     private val _themeMode = MutableStateFlow(prefs.getInt(Constants.KEY_THEME_MODE, Constants.THEME_SYSTEM))
     val themeMode: StateFlow<Int> = _themeMode.asStateFlow()
 
-    private val _hapticEnabled = MutableStateFlow(prefs.getBoolean("haptic_feedback_enabled", true))
+    private val _hapticEnabled = MutableStateFlow(prefs.getBoolean(Constants.KEY_HAPTIC_ENABLED, true))
     val hapticEnabled: StateFlow<Boolean> = _hapticEnabled.asStateFlow()
 
     private val _notificationSound = MutableStateFlow(prefs.getString(Constants.KEY_NOTIFICATION_SOUND, "terran_launch") ?: "terran_launch")
@@ -39,7 +39,7 @@ class PreferenceManager @Inject constructor(
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
         when (key) {
             Constants.KEY_THEME_MODE -> _themeMode.value = sharedPrefs.getInt(key, Constants.THEME_SYSTEM)
-            "haptic_feedback_enabled" -> _hapticEnabled.value = sharedPrefs.getBoolean(key, true)
+            Constants.KEY_HAPTIC_ENABLED -> _hapticEnabled.value = sharedPrefs.getBoolean(key, true)
             Constants.KEY_NOTIFICATION_SOUND -> _notificationSound.value = sharedPrefs.getString(key, "terran_launch") ?: "terran_launch"
             Constants.KEY_BOSS_SPAWN_ALERTS -> _bossNotificationsEnabled.value = sharedPrefs.getBoolean(key, true)
             Constants.KEY_EVENT_REMINDERS -> _eventNotificationsEnabled.value = sharedPrefs.getBoolean(key, true)
@@ -65,7 +65,7 @@ class PreferenceManager @Inject constructor(
     }
 
     fun setHapticFeedbackEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("haptic_feedback_enabled", enabled).apply()
+        prefs.edit().putBoolean(Constants.KEY_HAPTIC_ENABLED, enabled).apply()
     }
 
     fun setNotificationSound(sound: String) {

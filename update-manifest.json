@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 22,
-  "latestVersionName": "1.1.6",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.6/app-debug.apk",
+  "latestVersionCode": 23,
+  "latestVersionName": "1.1.7",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.7/app-debug.apk",
   "releaseNotes": "- Added Elysium Turn Filter: A new guild-specific filter beside the search bar to show only your rotation turns.\n- Dynamic Status Counts: Filter chip counts now update based on the active Elysium filter.\n- Enhanced Stability: Improved haptic feedback and date parsing across different Android devices.\n- UI Refinements: Better alignment and iconography for the boss timer screen.",
   "isForceUpdate": false
 }

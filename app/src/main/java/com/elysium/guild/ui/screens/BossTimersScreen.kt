@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -150,49 +151,87 @@ fun BossTimersScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Search Bar
-                    OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = { 
-                            viewModel.onSearchQueryChanged(it)
-                            coroutineScope.launch { listState.animateScrollToItem(0) }
-                        },
+                    // Search Bar & Filter Toggle
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search bosses...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 14.sp) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
-                        trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
-                            {
-                                IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = uiState.searchQuery,
+                            onValueChange = { 
+                                viewModel.onSearchQueryChanged(it)
+                                coroutineScope.launch { listState.animateScrollToItem(0) }
+                            },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Search bosses...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 14.sp) },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+                            trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
+                                {
+                                    IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                                        Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                                    }
                                 }
-                            }
-                        } else null,
-                        shape = RoundedCornerShape(16.dp),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                            unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                        ),
-                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
-                    )
+                            } else null,
+                            shape = RoundedCornerShape(16.dp),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                                unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            ),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
+                        )
+
+                        // Elysium Turn Filter Toggle (Distinguished Guild Icon)
+                        IconButton(
+                            onClick = { 
+                                viewModel.toggleElysiumTurnFilter()
+                                coroutineScope.launch { listState.animateScrollToItem(0) }
+                            },
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(
+                                    color = if (uiState.onlyElysiumTurn) 
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) 
+                                    else 
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.onlyElysiumTurn) Icons.Default.Shield else Icons.Default.Shield,
+                                contentDescription = "Elysium Turn Filter",
+                                tint = if (uiState.onlyElysiumTurn) 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Filter Chips with Counts
+                    // Filter Chips with Counts (Respecting Elysium Filter)
                     val filters = listOf("All", "Ready", "Soon", "Tracking")
-                    val filterCounts = remember(uiState.bosses) {
+                    val displayBossesForCounts = if (uiState.onlyElysiumTurn) {
+                        uiState.bosses.filter { it.rotation?.isOurTurn == true }
+                    } else {
+                        uiState.bosses
+                    }
+
+                    val filterCounts = remember(displayBossesForCounts) {
                         mapOf(
-                            "All" to uiState.bosses.size,
-                            "Ready" to uiState.bosses.count { it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0 },
-                            "Soon" to uiState.bosses.count { 
+                            "All" to displayBossesForCounts.size,
+                            "Ready" to displayBossesForCounts.count { it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0 },
+                            "Soon" to displayBossesForCounts.count {
                                 val isReady = it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0
                                 !isReady && (it.status == Constants.STATUS_SOON || (it.timeRemaining != null && it.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
                             },
-                            "Tracking" to uiState.bosses.count {
+                            "Tracking" to displayBossesForCounts.count {
                                  val isReady = it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0
                                  val isSoon = !isReady && (it.status == Constants.STATUS_SOON || (it.timeRemaining != null && it.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
                                  !isReady && !isSoon
@@ -221,7 +260,10 @@ fun BossTimersScreen(
                         } else if (uiState.error != null && uiState.bosses.isEmpty()) {
                             ErrorMessage(message = uiState.error!!, onRetry = { viewModel.refreshTimers() })
                         } else if (uiState.filteredBosses.isEmpty()) {
-                            EmptyBossState(query = uiState.searchQuery)
+                            EmptyBossState(
+                                query = uiState.searchQuery,
+                                isElysiumFilterActive = uiState.onlyElysiumTurn
+                            )
                         } else {
                             LazyColumn(
                                 state = listState,
@@ -272,7 +314,7 @@ fun FilterChipsWithCounts(
 }
 
 @Composable
-fun EmptyBossState(query: String) {
+fun EmptyBossState(query: String, isElysiumFilterActive: Boolean = false) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -286,7 +328,11 @@ fun EmptyBossState(query: String) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = if (query.isEmpty()) "No bosses tracked" else "No results for \"$query\"",
+            text = when {
+                query.isNotEmpty() -> "No results for \"$query\""
+                isElysiumFilterActive -> "No bosses for Elysium's turn"
+                else -> "No bosses tracked"
+            },
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
