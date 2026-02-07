@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 21,
-  "latestVersionName": "1.1.5",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.5/app-debug.apk",
-  "releaseNotes": "- Bubble Window Overhaul: Now displays all daily events with improved readability and sticky headers.\n- Scrollable Bubble: List auto-adjusts height and enables scrolling for long schedules.\n- Live Event Tracking: Events stay in 'READY' status for their entire duration.\n- Sorting Improvements: Active events and bosses now stay at the top of the list.\n- Timezone Support: Fixed bubble window to respect the local time toggle.",
+  "latestVersionCode": 22,
+  "latestVersionName": "1.1.6",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.6/app-debug.apk",
+  "releaseNotes": "- Added Elysium Turn Filter: A new guild-specific filter beside the search bar to show only your rotation turns.\n- Dynamic Status Counts: Filter chip counts now update based on the active Elysium filter.\n- Enhanced Stability: Improved haptic feedback and date parsing across different Android devices.\n- UI Refinements: Better alignment and iconography for the boss timer screen.",
   "isForceUpdate": false
 }
