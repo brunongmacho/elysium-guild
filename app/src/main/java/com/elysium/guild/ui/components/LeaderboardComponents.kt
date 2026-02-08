@@ -1,5 +1,6 @@
 package com.elysium.guild.ui.components
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -7,11 +8,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,8 +29,14 @@ import com.elysium.guild.viewmodel.PointsFilter
 fun LeaderboardPodium(
     topThree: List<LeaderboardEntry>,
     leaderboardType: LeaderboardType,
-    pointsFilter: PointsFilter = PointsFilter.EARNED
+    pointsFilter: PointsFilter = PointsFilter.EARNED,
+    searchQuery: String = ""
 ) {
+    var startAnimation by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        startAnimation = true
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -40,11 +49,14 @@ fun LeaderboardPodium(
             PodiumItem(
                 member = topThree[1],
                 rank = 2,
-                height = 200.dp,
+                targetHeight = 200.dp,
                 baseColor = Constants.COLOR_SILVER,
                 leaderboardType = leaderboardType,
                 pointsFilter = pointsFilter,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                searchQuery = searchQuery,
+                animate = startAnimation,
+                delay = 200
             )
         } else {
             Spacer(modifier = Modifier.weight(1f))
@@ -55,11 +67,14 @@ fun LeaderboardPodium(
             PodiumItem(
                 member = topThree[0],
                 rank = 1,
-                height = 240.dp,
+                targetHeight = 240.dp,
                 baseColor = Constants.COLOR_GOLD,
                 leaderboardType = leaderboardType,
                 pointsFilter = pointsFilter,
-                modifier = Modifier.weight(1.2f)
+                modifier = Modifier.weight(1.2f),
+                searchQuery = searchQuery,
+                animate = startAnimation,
+                delay = 0
             )
         }
 
@@ -68,11 +83,14 @@ fun LeaderboardPodium(
             PodiumItem(
                 member = topThree[2],
                 rank = 3,
-                height = 180.dp,
+                targetHeight = 180.dp,
                 baseColor = Constants.COLOR_BRONZE,
                 leaderboardType = leaderboardType,
                 pointsFilter = pointsFilter,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                searchQuery = searchQuery,
+                animate = startAnimation,
+                delay = 400
             )
         } else {
             Spacer(modifier = Modifier.weight(1f))
@@ -84,12 +102,25 @@ fun LeaderboardPodium(
 private fun PodiumItem(
     member: LeaderboardEntry,
     rank: Int,
-    height: Dp,
+    targetHeight: Dp,
     baseColor: Color,
     leaderboardType: LeaderboardType,
     pointsFilter: PointsFilter,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    searchQuery: String = "",
+    animate: Boolean = false,
+    delay: Int = 0
 ) {
+    val height by animateDpAsState(
+        targetValue = if (animate) targetHeight else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow,
+            visibilityThreshold = 1.dp
+        ),
+        label = "PodiumHeight"
+    )
+
     ElysiumGlassCard(
         modifier = modifier.height(height),
         statusColor = baseColor
@@ -117,9 +148,15 @@ private fun PodiumItem(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Name inside podium
+            val annotatedName = if (searchQuery.isEmpty()) AnnotatedString(member.username) else highlightSearchText(member.username, searchQuery, MaterialTheme.colorScheme.primary)
             Text(
-                text = member.username,
-                style = MaterialTheme.typography.labelLarge,
+                text = annotatedName,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    shadow = if (searchQuery.isNotEmpty()) Shadow(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        blurRadius = 8f
+                    ) else null
+                ),
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
@@ -213,9 +250,11 @@ fun LeaderboardMemberCard(
     member: LeaderboardEntry,
     rank: Int,
     type: LeaderboardType,
-    pointsFilter: PointsFilter = PointsFilter.EARNED
+    pointsFilter: PointsFilter = PointsFilter.EARNED,
+    searchQuery: String = "",
+    modifier: Modifier = Modifier
 ) {
-    ElysiumGlassCard {
+    ElysiumGlassCard(modifier = modifier) {
         Row(
             modifier = Modifier
                 .padding(16.dp)
@@ -236,9 +275,15 @@ fun LeaderboardMemberCard(
             }
             
             Column(modifier = Modifier.weight(1f)) {
+                val annotatedName = if (searchQuery.isEmpty()) AnnotatedString(member.username) else highlightSearchText(member.username, searchQuery, MaterialTheme.colorScheme.primary)
                 Text(
-                    text = member.username,
-                    style = MaterialTheme.typography.bodyLarge,
+                    text = annotatedName,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        shadow = if (searchQuery.isNotEmpty()) Shadow(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                            blurRadius = 8f
+                        ) else null
+                    ),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )

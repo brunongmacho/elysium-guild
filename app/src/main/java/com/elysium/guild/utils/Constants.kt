@@ -26,6 +26,7 @@ object Constants {
     const val KEY_BOSS_SPAWN_ALERTS = "boss_spawn_alerts"
     const val KEY_EVENT_REMINDERS = "event_reminders"
     const val KEY_HAPTIC_ENABLED = "haptic_feedback_enabled"
+    const val KEY_VIBRATE_ONLY = "vibrate_only_alerts"
     const val KEY_BOSS_NOTIFICATION_OFFSET = "boss_notification_offset"
     const val KEY_FLOATING_BUBBLE_ENABLED = "floating_bubble_enabled"
     const val KEY_BUBBLE_LAST_X = "bubble_last_x"
@@ -83,11 +84,11 @@ object Constants {
     const val SPAWNING_SOON_THRESHOLD_MS = SPAWNING_SOON_THRESHOLD_MINUTES * 60 * 1000L
     
     // UI Colors - Status
-    val COLOR_READY = Color(0xFF10B981)
-    val COLOR_SOON = Color(0xFFF59E0B)
-    val COLOR_OVERDUE = Color(0xFFEF4444)
-    val COLOR_TRACKING = Color(0xFF6366F1)
-    val COLOR_TRACKING_LIGHT = Color(0xFF0284C7) // Vibrant Azure Blue
+    val COLOR_READY = Color(0xFF10B981) // Green
+    val COLOR_SOON = Color(0xFFF59E0B) // Amber/Gold
+    val COLOR_OVERDUE = Color(0xFFEF4444) // Red
+    val COLOR_TRACKING = Color(0xFF6366F1) // Indigo/Blue
+    val COLOR_TRACKING_LIGHT = Color(0xFF0284C7) // Azure Blue
     val COLOR_SUCCESS = Color(0xFF4CAF50)
     
     // UI Colors - Podium
@@ -143,6 +144,19 @@ object UIUtils {
             isReady -> Constants.COLOR_READY
             isSoon -> Constants.COLOR_SOON
             else -> if (isDark) Constants.COLOR_TRACKING else Constants.COLOR_TRACKING_LIGHT
+        }
+    }
+    
+    fun getCountdownColor(timeRemainingMs: Long?, isDark: Boolean): Color {
+        if (timeRemainingMs == null) return if (isDark) Color.White.copy(alpha = 0.6f) else Color.Gray
+
+        val minutesRemaining = timeRemainingMs / 1000 / 60
+
+        return when {
+            minutesRemaining > 30 -> if (isDark) Color.White.copy(alpha = 0.4f) else Color.Gray.copy(alpha = 0.6f)
+            minutesRemaining in 11..30 -> if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray
+            minutesRemaining in 0..10 -> Constants.COLOR_SOON // Imminent Gold/Amber
+            else -> Constants.COLOR_OVERDUE // Overdue Red
         }
     }
 

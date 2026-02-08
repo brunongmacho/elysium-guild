@@ -167,7 +167,8 @@ class BossBubbleService : Service() {
     private fun updateScreenDimensions() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                windowManager?.currentWindowMetrics?.bounds?.let { bounds ->
+                val windowMetrics = windowManager?.currentWindowMetrics
+                windowMetrics?.bounds?.let { bounds ->
                     screenWidth = bounds.width()
                     screenHeight = bounds.height()
                 }
@@ -493,7 +494,7 @@ class BossBubbleService : Service() {
     private fun snapToEdge() {
         val currentParams = params ?: return
         val currentX = currentParams.x
-        val viewWidth = if (floatingView?.width ?: 0 > 0) floatingView!!.width else dpToPx(70)
+        val viewWidth = if ((floatingView?.width ?: 0) > 0) floatingView!!.width else dpToPx(70)
         val targetX = if (currentX + viewWidth / 2 < screenWidth / 2) {
             0
         } else {
@@ -721,7 +722,7 @@ class BossBubbleService : Service() {
             Constants.THEME_DARK -> true
             Constants.THEME_LIGHT -> false
             else -> {
-                (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
             }
         }
     }

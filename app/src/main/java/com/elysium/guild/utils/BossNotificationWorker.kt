@@ -75,7 +75,7 @@ class BossNotificationWorker @AssistedInject constructor(
 
         if (alarmTimeMs <= nowMs) return // Already passed
 
-        val alarmManager = applicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val alarmManager = applicationContext.getSystemService(AlarmManager::class.java)
         val intent = Intent(applicationContext, BossAlarmReceiver::class.java).apply {
             putExtra(Constants.EXTRA_BOSS_NAME, name)
             putExtra(Constants.EXTRA_MINUTES_REMAINING, minutesBefore)
@@ -94,19 +94,15 @@ class BossNotificationWorker @AssistedInject constructor(
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
-                    // Maximum stability: exact while idle
                     alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
                 } else {
-                    // Fallback for stability: inexact but still works while idle
                     alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
                 }
             } else {
-                @Suppress("DEPRECATION")
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
             }
         } catch (se: SecurityException) {
             Log.e("BossWorker", "SecurityException during alarm scheduling", se)
-            // Final fallback: non-exact, non-idle-aware
             alarmManager.set(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to schedule alarm: ${e.message}")
@@ -119,7 +115,6 @@ class BossNotificationWorker @AssistedInject constructor(
         fun schedule(context: Context) {
             val workManager = WorkManager.getInstance(context)
 
-            // Optimization: Immediate one-time work for synchronization
             val immediateRequest = OneTimeWorkRequestBuilder<BossNotificationWorker>()
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder()
@@ -133,7 +128,6 @@ class BossNotificationWorker @AssistedInject constructor(
                 immediateRequest
             )
 
-            // Long-term stability: periodic sync
             val periodicRequest = PeriodicWorkRequestBuilder<BossNotificationWorker>(1, TimeUnit.HOURS)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder()

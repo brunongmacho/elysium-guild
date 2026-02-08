@@ -5,6 +5,9 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.elysium.guild.R
 import com.elysium.guild.ui.components.*
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
@@ -51,6 +55,9 @@ fun BossTimersScreen(
     val context = LocalContext.current
     val pullRefreshState = rememberPullToRefreshState()
     
+    // Tracking scroll for parallax
+    val scrollOffset = remember { derivedStateOf { listState.firstVisibleItemScrollOffset.toFloat() + listState.firstVisibleItemIndex * 500f } }
+
     // Track previous boss IDs and statuses to detect changes
     var previousBossStatuses by remember { mutableStateOf(mapOf<String, String>()) }
 
@@ -82,12 +89,19 @@ fun BossTimersScreen(
             }
         }
     }
+
+    // Pull-to-refresh haptic feedback
+    LaunchedEffect(uiState.isRefreshing) {
+        if (uiState.isRefreshing && viewModel.isHapticEnabled()) {
+            triggerHapticFeedback(context, duration = 15)
+        }
+    }
     
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        DynamicElysiumBackground {
+        DynamicElysiumBackground(scrollOffset = scrollOffset.value) {
             PullToRefreshBox(
                 state = pullRefreshState,
                 isRefreshing = uiState.isRefreshing,
@@ -226,13 +240,13 @@ fun BossTimersScreen(
                     val filterCounts = remember(displayBossesForCounts) {
                         mapOf(
                             "All" to displayBossesForCounts.size,
-                            "Ready" to displayBossesForCounts.count { it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0 },
+                            "Ready" to displayBossesForCounts.count { it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1L) <= 0L },
                             "Soon" to displayBossesForCounts.count {
-                                val isReady = it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0
+                                val isReady = it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1L) <= 0L
                                 !isReady && (it.status == Constants.STATUS_SOON || (it.timeRemaining != null && it.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
                             },
                             "Tracking" to displayBossesForCounts.count {
-                                 val isReady = it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1) <= 0
+                                 val isReady = it.status == Constants.STATUS_READY || it.status == Constants.STATUS_OVERDUE || (it.timeRemaining ?: 1L) <= 0L
                                  val isSoon = !isReady && (it.status == Constants.STATUS_SOON || (it.timeRemaining != null && it.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
                                  !isReady && !isSoon
                             }
@@ -262,7 +276,12 @@ fun BossTimersScreen(
                         } else if (uiState.filteredBosses.isEmpty()) {
                             EmptyBossState(
                                 query = uiState.searchQuery,
-                                isElysiumFilterActive = uiState.onlyElysiumTurn
+                                isElysiumFilterActive = uiState.onlyElysiumTurn,
+                                onClearFilters = {
+                                    viewModel.onSearchQueryChanged("")
+                                    viewModel.setFilter("All")
+                                    if (uiState.onlyElysiumTurn) viewModel.toggleElysiumTurnFilter()
+                                }
                             )
                         } else {
                             LazyColumn(
@@ -276,9 +295,18 @@ fun BossTimersScreen(
                                     key = { it.bossName }
                                 ) { boss ->
                                     BossTimerCard(
+                                        modifier = Modifier.animateItem(
+                                            fadeInSpec = tween(300),
+                                            fadeOutSpec = tween(300),
+                                            placementSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessLow
+                                            )
+                                        ),
                                         boss = boss,
                                         currentTime = currentTime,
-                                        useLocalTimezone = useLocalTimezone
+                                        useLocalTimezone = useLocalTimezone,
+                                        searchQuery = uiState.searchQuery
                                     )
                                 }
                             }
@@ -314,7 +342,11 @@ fun FilterChipsWithCounts(
 }
 
 @Composable
-fun EmptyBossState(query: String, isElysiumFilterActive: Boolean = false) {
+fun EmptyBossState(
+    query: String,
+    isElysiumFilterActive: Boolean = false,
+    onClearFilters: () -> Unit = {}
+) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -334,17 +366,25 @@ fun EmptyBossState(query: String, isElysiumFilterActive: Boolean = false) {
                 else -> "No bosses tracked"
             },
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            textAlign = TextAlign.Center
         )
         Text(
             text = "Try adjusting your filters or search query",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+            textAlign = TextAlign.Center
         )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        TextButton(onClick = onClearFilters) {
+            Text("Clear all filters", fontWeight = FontWeight.Bold)
+        }
     }
 }
 
-private fun triggerHapticFeedback(context: Context) {
+private fun triggerHapticFeedback(context: Context, duration: Long = 50) {
     val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
         vibratorManager.defaultVibrator
@@ -354,9 +394,9 @@ private fun triggerHapticFeedback(context: Context) {
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+        vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
     } else {
         @Suppress("DEPRECATION")
-        vibrator.vibrate(50)
+        vibrator.vibrate(duration)
     }
 }

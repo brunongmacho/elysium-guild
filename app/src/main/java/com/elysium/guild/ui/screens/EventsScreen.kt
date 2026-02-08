@@ -1,8 +1,10 @@
 package com.elysium.guild.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,6 +14,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,7 +40,15 @@ fun EventsScreen(
     val currentTime = viewModel.currentTime.collectAsState()
     val useLocalTimezone by preferenceManager.useLocalTimezone.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
-    
+    val listState = rememberLazyListState()
+
+    // Tracking scroll for parallax consistency
+    val scrollOffset = remember {
+        derivedStateOf {
+            listState.firstVisibleItemScrollOffset.toFloat() + listState.firstVisibleItemIndex * 500f
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.refreshEvents(isInitial = true)
     }
@@ -46,7 +57,7 @@ fun EventsScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        DynamicElysiumBackground {
+        DynamicElysiumBackground(scrollOffset = scrollOffset.value) {
             PullToRefreshBox(
                 state = pullToRefreshState,
                 isRefreshing = uiState.isRefreshing,
@@ -109,21 +120,44 @@ fun EventsScreen(
                         }
                         
                         else -> {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                contentPadding = PaddingValues(bottom = 24.dp)
-                            ) {
-                                items(
-                                    items = uiState.events,
-                                    key = { it.id }
-                                ) { event ->
-                                    EventCard(
-                                        event = event,
-                                        currentTime = currentTime,
-                                        useLocalTimezone = useLocalTimezone,
-                                        onReminderClick = { viewModel.toggleReminder(event) }
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                // Vertical Timeline Line
+                                if (uiState.events.isNotEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(start = 21.dp) // Align with icon centers
+                                            .fillMaxHeight()
+                                            .width(1.dp)
+                                            .background(
+                                                brush = Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                                        Color.Transparent
+                                                    )
+                                                )
+                                            )
                                     )
+                                }
+
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    contentPadding = PaddingValues(bottom = 24.dp)
+                                ) {
+                                    itemsIndexed(
+                                        items = uiState.events,
+                                        key = { _, event -> event.id }
+                                    ) { index, event ->
+                                        EventCard(
+                                            event = event,
+                                            currentTime = currentTime,
+                                            useLocalTimezone = useLocalTimezone,
+                                            onReminderClick = { viewModel.toggleReminder(event) }
+                                        )
+                                    }
                                 }
                             }
                         }

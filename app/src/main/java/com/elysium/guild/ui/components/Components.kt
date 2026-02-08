@@ -1,13 +1,14 @@
 package com.elysium.guild.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,11 +17,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,17 +37,29 @@ import com.elysium.guild.utils.UIUtils
 import kotlinx.datetime.*
 import java.util.Locale
 
+// Tabular figures style for countdowns to prevent jitter
+val TabularTextStyle = TextStyle(
+    fontFeatureSettings = "tnum"
+)
+
 @Composable
 fun EventCard(
     event: GuildEvent,
     currentTime: State<Instant>,
     useLocalTimezone: Boolean = false,
-    onReminderClick: (GuildEvent) -> Unit
+    onReminderClick: (GuildEvent) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
+    val now = currentTime.value
+    val start = Instant.parse(event.startTime)
+    val end = event.endTime?.let { Instant.parse(it) }
     
-    val targetColor = remember(event.startTime, event.endTime, currentTime.value, isDark) {
-        UIUtils.getEventStatusColor(event.startTime, event.endTime, currentTime.value, isDark)
+    // Live detection
+    val isLive = end?.let { now >= start && now < it } ?: (now >= start && (now - start).inWholeMinutes < 60)
+    
+    val targetColor = remember(event.startTime, event.endTime, now, isDark) {
+        UIUtils.getEventStatusColor(event.startTime, event.endTime, now, isDark)
     }
 
     val animatedColor by animateColorAsState(
@@ -51,8 +68,22 @@ fun EventCard(
         label = "EventColorAnimation"
     )
 
+    val infiniteTransition = rememberInfiniteTransition(label = "LivePulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.03f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Pulse"
+    )
+
     ElysiumGlassCard(
-        statusColor = animatedColor
+        modifier = modifier.then(if (isLive) Modifier.scale(pulseScale) else Modifier),
+        statusColor = animatedColor,
+        glowColor = if (isLive) Constants.COLOR_READY else Color.Transparent,
+        onClick = { /* Detail action */ }
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -67,26 +98,47 @@ fun EventCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Surface(
-                        modifier = Modifier.size(40.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        color = animatedColor.copy(alpha = if (isDark) 0.2f else 0.1f)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = UIUtils.getEventIcon(event.type),
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                    // Icon with Timeline node feel
+                    Box(contentAlignment = Alignment.Center) {
+                        Surface(
+                            modifier = Modifier.size(42.dp),
+                            shape = CircleShape,
+                            color = animatedColor.copy(alpha = if (isDark) 0.2f else 0.1f),
+                            border = BorderStroke(1.dp, animatedColor.copy(alpha = 0.5f))
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = UIUtils.getEventIcon(event.type),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                        }
+                        
+                        if (isLive) {
+                            Surface(
+                                modifier = Modifier.size(48.dp),
+                                shape = CircleShape,
+                                color = Color.Transparent,
+                                border = BorderStroke(1.dp, Constants.COLOR_READY.copy(alpha = 0.3f))
+                            ) {}
                         }
                     }
                     
                     Column {
-                        Text(
-                            text = event.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = event.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            
+                            if (isLive) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                LiveBadge()
+                            }
+                        }
+                        
                         val formattedTime = remember(event.startTime, useLocalTimezone) {
                             UIUtils.formatEventTime(event.startTime, useLocalTimezone)
                         }
@@ -106,32 +158,63 @@ fun EventCard(
                 lineHeight = MaterialTheme.typography.bodySmall.lineHeight
             )
 
-            val countdown = remember(event.startTime, event.endTime, currentTime.value) {
-                UIUtils.calculateEventCountdown(event.startTime, event.endTime, currentTime.value)
+            val countdown = remember(event.startTime, event.endTime, now) {
+                UIUtils.calculateEventCountdown(event.startTime, event.endTime, now)
             }
 
             if (countdown.isNotEmpty()) {
+                val countdownColor = if (isLive) Constants.COLOR_READY 
+                                   else if ((start - now).inWholeMinutes < 15) Constants.COLOR_SOON
+                                   else if (isDark) Color.White.copy(alpha = 0.7f) else Color.Gray
+
                 Surface(
-                    color = animatedColor.copy(alpha = if (isDark) 0.4f else 0.15f),
+                    color = countdownColor.copy(alpha = if (isDark) 0.2f else 0.1f),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.align(Alignment.End),
-                    border = androidx.compose.foundation.BorderStroke(
+                    border = BorderStroke(
                         width = 1.dp, 
-                        color = animatedColor.copy(alpha = if (isDark) 0.3f else 0.4f)
+                        color = countdownColor.copy(alpha = if (isDark) 0.3f else 0.4f)
                     )
                 ) {
                     Text(
                         text = countdown,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.merge(TabularTextStyle),
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
-                        color = if (!isDark) animatedColor.copy(alpha = 0.9f) 
-                                else animatedColor
+                        color = countdownColor
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun LiveBadge() {
+    val infiniteTransition = rememberInfiniteTransition(label = "LiveBadge")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Alpha"
+    )
+
+    Surface(
+        color = Constants.COLOR_READY.copy(alpha = alpha),
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Text(
+            text = "LIVE",
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+            fontSize = 8.sp
+        )
     }
 }
 
@@ -196,7 +279,7 @@ fun ElysiumFilterChip(
                 ) {
                     Text(
                         text = count.toString(),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.merge(TabularTextStyle),
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                         fontWeight = FontWeight.Black,
                         fontSize = 9.sp,

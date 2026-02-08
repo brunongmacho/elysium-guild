@@ -8,6 +8,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -19,12 +20,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
@@ -38,7 +47,9 @@ import kotlinx.datetime.Instant
 fun BossTimerCard(
     boss: BossTimer,
     currentTime: State<Instant>,
-    useLocalTimezone: Boolean = false
+    useLocalTimezone: Boolean = false,
+    modifier: Modifier = Modifier,
+    searchQuery: String = ""
 ) {
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
@@ -53,68 +64,118 @@ fun BossTimerCard(
         label = "CardColorAnimation"
     )
 
+    val isElysiumTurn = boss.rotation?.isOurTurn == true
+    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || (boss.timeRemaining ?: 1L) <= 0L
+
     ElysiumGlassCard(
-        statusColor = animatedColor
+        modifier = modifier.padding(vertical = 6.dp),
+        statusColor = animatedColor,
+        glowColor = if (isElysiumTurn) MaterialTheme.colorScheme.primary else Color.Transparent,
+        onClick = { /* Could navigate to detail if needed */ }
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            shareBossStatus(context, boss, currentTime.value)
+                        }
+                    )
+                }
         ) {
-            BossAvatar(boss = boss, statusColor = animatedColor)
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BossAvatar(boss = boss, statusColor = animatedColor, isUrgent = isReady)
 
-            Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = boss.bossName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "${boss.bossPoints} Points",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = { shareBossStatus(context, boss, currentTime.value) },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Share",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                modifier = Modifier.size(18.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = highlightSearchText(boss.bossName, searchQuery, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    shadow = if (searchQuery.isNotEmpty()) Shadow(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                        blurRadius = 8f
+                                    ) else null
+                                ),
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${boss.bossPoints} Points",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { shareBossStatus(context, boss, currentTime.value) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Share",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
 
-                        StatusBadge(boss = boss, currentTime = currentTime, statusColor = animatedColor)
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            StatusBadge(boss = boss, currentTime = currentTime, statusColor = animatedColor)
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (boss.rotation?.isRotating == true) {
+                        RotationStatus(boss.rotation!!)
+                    }
+
+                    SpawnTimeText(boss, useLocalTimezone)
                 }
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
+            DynamicProgressBar(boss, currentTime, animatedColor)
+        }
+    }
+}
 
-                if (boss.rotation?.isRotating == true) {
-                    RotationStatus(boss.rotation)
+@Composable
+fun highlightSearchText(text: String, query: String, highlightColor: Color): AnnotatedString {
+    if (query.isEmpty()) return AnnotatedString(text)
+    
+    return buildAnnotatedString {
+        val lowerText = text.lowercase()
+        val lowerQuery = query.lowercase()
+        var start = 0
+        while (start < text.length) {
+            val index = lowerText.indexOf(lowerQuery, start)
+            if (index == -1) {
+                append(text.substring(start))
+                break
+            } else {
+                append(text.substring(start, index))
+                withStyle(style = SpanStyle(
+                    color = highlightColor, 
+                    fontWeight = FontWeight.Black,
+                    background = highlightColor.copy(alpha = 0.1f)
+                )) {
+                    append(text.substring(index, index + query.length))
                 }
-
-                SpawnTimeText(boss, useLocalTimezone)
+                start = index + query.length
             }
         }
-
-        DynamicProgressBar(boss, currentTime, animatedColor)
     }
 }
 
@@ -124,15 +185,26 @@ private fun StatusBadge(
     currentTime: State<Instant>,
     statusColor: Color
 ) {
-    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || (boss.timeRemaining ?: 1) <= 0
-    val isSoon = !isReady && (boss.status == Constants.STATUS_SOON || (boss.timeRemaining != null && boss.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
+    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || (boss.timeRemaining ?: 1L) <= 0L
     val isDark = isSystemInDarkTheme()
 
     if (isReady) {
+        val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
+        val badgeScale by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.05f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "BadgeScale"
+        )
+
         Surface(
             color = Constants.COLOR_READY.copy(alpha = if (isDark) 0.8f else 1f),
             shape = RoundedCornerShape(12.dp),
-            shadowElevation = 4.dp
+            shadowElevation = 4.dp,
+            modifier = Modifier.scale(badgeScale)
         ) {
             Text(
                 text = Constants.LABEL_READY,
@@ -147,13 +219,15 @@ private fun StatusBadge(
             boss.nextSpawnTime?.let { calculateBossCountdown(it, currentTime.value) } ?: ""
         }
         
+        val countdownColor = UIUtils.getCountdownColor(boss.timeRemaining, isDark)
+
         if (countdownText.isNotEmpty()) {
             Surface(
-                color = statusColor.copy(alpha = if (isDark) 0.4f else 0.15f),
+                color = countdownColor.copy(alpha = if (isDark) 0.2f else 0.1f),
                 shape = RoundedCornerShape(12.dp),
                 border = androidx.compose.foundation.BorderStroke(
                     width = 1.dp, 
-                    color = statusColor.copy(alpha = if (isDark) 0.3f else 0.4f)
+                    color = countdownColor.copy(alpha = if (isDark) 0.4f else 0.5f)
                 )
             ) {
                 Text(
@@ -161,8 +235,7 @@ private fun StatusBadge(
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
-                    color = if (!isDark) statusColor.copy(alpha = 0.9f) 
-                            else statusColor,
+                    color = countdownColor,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
             }
@@ -173,7 +246,7 @@ private fun StatusBadge(
 @Composable
 private fun RotationStatus(rotation: RotationInfo) {
     val isDark = isSystemInDarkTheme()
-    val isElysium = rotation.currentGuild?.uppercase() == "ELYSIUM"
+    val isElysium = rotation.isOurTurn == true
 
     Column(
         modifier = Modifier
@@ -246,7 +319,7 @@ private fun DynamicProgressBar(
 ) {
     val threshold = Constants.SPAWNING_SOON_THRESHOLD_MS
     val timeRemaining = boss.timeRemaining ?: return
-    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || timeRemaining <= 0
+    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || timeRemaining <= 0L
     val isDark = isSystemInDarkTheme()
     
     if (!isReady && timeRemaining <= threshold) {
@@ -269,11 +342,11 @@ private fun DynamicProgressBar(
                 .fillMaxWidth()
                 .height(6.dp)
                 .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp)
                 .clip(CircleShape),
             color = animatedColor,
             trackColor = animatedColor.copy(alpha = if (isDark) 0.1f else 0.05f)
         )
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -281,7 +354,8 @@ private fun DynamicProgressBar(
 fun BossAvatar(
     boss: BossTimer,
     statusColor: Color,
-    size: Int = 60
+    size: Int = 60,
+    isUrgent: Boolean = false
 ) {
     val context = LocalContext.current
     val avatarColor = remember(boss.bossName) {
@@ -293,9 +367,22 @@ fun BossAvatar(
         colors[Math.abs(hash) % colors.size]
     }
 
+    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseScale"
+    )
+
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size((size + 12).dp)
+        modifier = Modifier
+            .size((size + 12).dp)
+            .then(if (isUrgent) Modifier.scale(pulseScale) else Modifier)
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -332,7 +419,9 @@ fun BossAvatar(
                     .size(size.dp)
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop,
-                loading = { CircularProgressIndicator(modifier = Modifier.padding(16.dp), strokeWidth = 2.dp) },
+                loading = {
+                    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)))
+                },
                 error = { BossInitialAvatar(boss.bossName, avatarColor, size) }
             )
         } else {

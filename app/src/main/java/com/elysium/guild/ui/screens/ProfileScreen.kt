@@ -48,13 +48,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.elysium.guild.R
-import com.elysium.guild.ui.components.DynamicElysiumBackground
-import com.elysium.guild.ui.components.ElysiumGlassCard
-import com.elysium.guild.ui.components.NotificationToggle
-import com.elysium.guild.ui.components.PermissionStatusItem
-import com.elysium.guild.ui.components.SettingsCard
-import com.elysium.guild.ui.components.SoundSelectionItem
-import com.elysium.guild.ui.components.ThemeOptionButton
+import com.elysium.guild.ui.components.*
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
 import com.elysium.guild.viewmodel.ProfileViewModel
@@ -71,10 +65,15 @@ fun ProfileScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val isDark = isSystemInDarkTheme()
+    val scrollState = rememberScrollState()
+    
+    // Parallax scroll offset tracking
+    val scrollOffset = remember { derivedStateOf { scrollState.value.toFloat() } }
     
     // Preference States
     val themeMode by preferenceManager.themeMode.collectAsState()
     val hapticEnabled by preferenceManager.hapticEnabled.collectAsState()
+    val vibrateOnly by preferenceManager.vibrateOnly.collectAsState()
     val savedSound by preferenceManager.notificationSound.collectAsState()
     val savedBossNotif by preferenceManager.bossNotificationsEnabled.collectAsState()
     val savedEventNotif by preferenceManager.eventNotificationsEnabled.collectAsState()
@@ -84,6 +83,7 @@ fun ProfileScreen(
     // Local States for change detection
     var pendingThemeMode by remember(themeMode) { mutableIntStateOf(themeMode) }
     var pendingHapticEnabled by remember(hapticEnabled) { mutableStateOf(hapticEnabled) }
+    var pendingVibrateOnly by remember(vibrateOnly) { mutableStateOf(vibrateOnly) }
     var pendingSound by remember(savedSound) { mutableStateOf(savedSound) }
     var pendingBossNotif by remember(savedBossNotif) { mutableStateOf(savedBossNotif) }
     var pendingEventNotif by remember(savedEventNotif) { mutableStateOf(savedEventNotif) }
@@ -94,6 +94,7 @@ fun ProfileScreen(
 
     val hasChanges = pendingThemeMode != themeMode ||
             pendingHapticEnabled != hapticEnabled ||
+            pendingVibrateOnly != vibrateOnly ||
             pendingSound != savedSound ||
             pendingBossNotif != savedBossNotif ||
             pendingEventNotif != savedEventNotif ||
@@ -102,12 +103,13 @@ fun ProfileScreen(
 
     val updateState by viewModel.updateState.collectAsState()
 
-    var isIgnoringBatteryOptimizations by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
+    // Permission States
     var areNotificationsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var canScheduleExactAlarms by remember { mutableStateOf(canScheduleExactAlarms(context)) }
-    var isNetworkAvailable by remember { mutableStateOf(isNetworkAvailable(context)) }
-    var canInstallPackages by remember { mutableStateOf(canInstallPackages(context)) }
     var canDrawOverlays by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    var isIgnoringBatteryOptimizations by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
+
+    val allPermissionsEnabled = areNotificationsEnabled && canScheduleExactAlarms && canDrawOverlays && isIgnoringBatteryOptimizations
 
     // Donation Sheet State
     var showDonationSheet by remember { mutableStateOf(false) }
@@ -125,12 +127,10 @@ fun ProfileScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations(context)
                 areNotificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
                 canScheduleExactAlarms = canScheduleExactAlarms(context)
-                isNetworkAvailable = isNetworkAvailable(context)
-                canInstallPackages = canInstallPackages(context)
                 canDrawOverlays = Settings.canDrawOverlays(context)
+                isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -155,15 +155,6 @@ fun ProfileScreen(
                         Text("A new version (${state.updateInfo.latestVersionName}) is available.")
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(state.updateInfo.releaseNotes, style = MaterialTheme.typography.bodySmall)
-                        
-                        if (!canInstallPackages) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                "Note: You need to allow 'Install from Unknown Sources' in settings for the update to run.",
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
                     }
                 },
                 confirmButton = {
@@ -191,23 +182,23 @@ fun ProfileScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        DynamicElysiumBackground {
+        DynamicElysiumBackground(scrollOffset = scrollOffset.value) {
             Box(modifier = Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(scrollState),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
                     
-                    // Centered Settings Header
+                    // Centered Header (Picture removed as requested)
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = Constants.TITLE_SETTINGS,
                             style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center
                         )
@@ -221,7 +212,60 @@ fun ProfileScreen(
                     
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 1. APP UPDATES
+                    // 1. SYSTEM HEALTH (Hidden if everything is enabled)
+                    AnimatedVisibility(
+                        visible = !allPermissionsEnabled,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        SettingsCard(
+                            title = "System Health",
+                            icon = Icons.Default.HealthAndSafety
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (!areNotificationsEnabled) {
+                                    PermissionStatusItem(
+                                        title = "Push Notifications",
+                                        statusText = "Denied (Tap to fix)",
+                                        isActive = false,
+                                        icon = Icons.Default.NotificationsOff,
+                                        onClick = { openNotificationSettings(context) }
+                                    )
+                                }
+                                if (!canScheduleExactAlarms) {
+                                    PermissionStatusItem(
+                                        title = "Exact Alarms",
+                                        statusText = "Delayed (Tap to fix)",
+                                        isActive = false,
+                                        icon = Icons.Default.TimerOff,
+                                        onClick = { openAlarmSettings(context) }
+                                    )
+                                }
+                                if (!canDrawOverlays) {
+                                    PermissionStatusItem(
+                                        title = "Overlay Bubble",
+                                        statusText = "Required (Tap to fix)",
+                                        isActive = false,
+                                        icon = Icons.Default.LayersClear,
+                                        onClick = { openOverlaySettings(context) }
+                                    )
+                                }
+                                if (!isIgnoringBatteryOptimizations) {
+                                    PermissionStatusItem(
+                                        title = "Battery Optimization",
+                                        statusText = "Restricted (Tap to fix)",
+                                        isActive = false,
+                                        icon = Icons.Default.BatteryAlert,
+                                        onClick = { requestIgnoreBatteryOptimizations(context) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (!allPermissionsEnabled) Spacer(modifier = Modifier.height(16.dp))
+
+                    // 2. APP UPDATES
                     SettingsCard(
                         title = "App Update",
                         icon = Icons.Default.SystemUpdate
@@ -245,7 +289,6 @@ fun ProfileScreen(
                                     )
                                 }
                                 
-                                // Glassy Update Button
                                 Surface(
                                     onClick = { viewModel.checkForUpdates() },
                                     enabled = updateState !is UpdateState.Checking && updateState !is UpdateState.Downloading,
@@ -293,7 +336,7 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 2. ALERT & INTERACTION PREFERENCES
+                    // 3. ALERT & INTERACTION PREFERENCES
                     SettingsCard(
                         title = "Alert and interaction",
                         icon = Icons.Default.Notifications
@@ -303,7 +346,9 @@ fun ProfileScreen(
                                 title = "Boss Spawn Alerts",
                                 description = "Precise 10m warning for world bosses",
                                 checked = pendingBossNotif,
-                                onCheckedChange = { pendingBossNotif = it }
+                                onCheckedChange = { pendingBossNotif = it },
+                                icon = Icons.Default.Timer,
+                                iconColor = Color(0xFF10B981)
                             )
                             
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -312,7 +357,9 @@ fun ProfileScreen(
                                 title = "Event Reminders",
                                 description = "Precise 10m warning for guild activities",
                                 checked = pendingEventNotif,
-                                onCheckedChange = { pendingEventNotif = it }
+                                onCheckedChange = { pendingEventNotif = it },
+                                icon = Icons.Default.Event,
+                                iconColor = Color(0xFF6366F1)
                             )
 
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -328,7 +375,20 @@ fun ProfileScreen(
                                     } else {
                                         pendingBubbleEnabled = it
                                     }
-                                }
+                                },
+                                icon = Icons.Default.AdsClick,
+                                iconColor = Color(0xFFF59E0B)
+                            )
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+
+                            NotificationToggle(
+                                title = "Vibrate Only",
+                                description = "Silent alerts with haptic feedback",
+                                checked = pendingVibrateOnly,
+                                onCheckedChange = { pendingVibrateOnly = it },
+                                icon = Icons.Default.NotificationsPaused,
+                                iconColor = Color(0xFF94A3B8)
                             )
 
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -337,25 +397,28 @@ fun ProfileScreen(
                                 title = "Haptic Feedback",
                                 description = "Vibrate on status changes and refreshes",
                                 checked = pendingHapticEnabled,
-                                onCheckedChange = { pendingHapticEnabled = it }
+                                onCheckedChange = { pendingHapticEnabled = it },
+                                icon = Icons.Default.Vibration,
+                                iconColor = Color(0xFFEC4899)
                             )
 
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                            if (!pendingVibrateOnly) {
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
 
-                            // SOUND SELECTION
-                            SoundSelectionItem(
-                                selectedSound = pendingSound,
-                                onSoundSelected = { 
-                                    pendingSound = it
-                                    playSoundPreview(context, it)
-                                }
-                            )
+                                SoundSelectionItem(
+                                    selectedSound = pendingSound,
+                                    onSoundSelected = { 
+                                        pendingSound = it
+                                        playSoundPreview(context, it)
+                                    }
+                                )
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 3. APPEARANCE & TIMEZONE
+                    // 4. APPEARANCE & TIMEZONE
                     SettingsCard(
                         title = "Appearance and Time",
                         icon = Icons.Default.Palette
@@ -389,16 +452,18 @@ fun ProfileScreen(
 
                             NotificationToggle(
                                 title = "Use Local Timezone",
-                                description = "Show times in your device's timezone instead of GMT+8",
+                                description = "Show times in your device's timezone",
                                 checked = pendingLocalTimezone,
-                                onCheckedChange = { pendingLocalTimezone = it }
+                                onCheckedChange = { pendingLocalTimezone = it },
+                                icon = Icons.Default.Language,
+                                iconColor = Color(0xFF06B6D4)
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 4. GUILD SUPPORT (Donation Card)
+                    // 5. GUILD SUPPORT
                     SettingsCard(
                         title = "Guild Support",
                         icon = Icons.Default.Favorite
@@ -412,9 +477,21 @@ fun ProfileScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "Donate to Guild", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                Text(text = "Help us keep the servers running", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(imageVector = Icons.Default.VolunteerActivism, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(text = "Donate to Guild", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                    Text(text = "Help us keep the servers running", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                             Icon(
                                 imageVector = Icons.Default.QrCode2,
@@ -424,269 +501,29 @@ fun ProfileScreen(
                             )
                         }
                     }
-
-                    // 5. PERMISSIONS (Dynamic)
-                    val needsNotificationPermission = !areNotificationsEnabled
-                    val needsAlarmPermission = !canScheduleExactAlarms
-                    val needsBatteryPermission = !isIgnoringBatteryOptimizations
-                    val needsInstallPermission = !canInstallPackages
-                    val needsOverlayPermission = !canDrawOverlays
-                    val hasNetworkIssue = !isNetworkAvailable
-
-                    val showPermissionsSection = needsNotificationPermission ||
-                                               needsAlarmPermission ||
-                                               needsBatteryPermission ||
-                                               needsInstallPermission ||
-                                               needsOverlayPermission ||
-                                               hasNetworkIssue
-
-                    if (showPermissionsSection) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        SettingsCard(
-                            title = "Permissions",
-                            icon = Icons.Default.SettingsSuggest
-                        ) {
-                            Column {
-                                var first = true
-
-                                if (needsNotificationPermission) {
-                                    PermissionStatusItem(
-                                        title = "Push Notifications",
-                                        statusText = "Denied (Tap to allow)",
-                                        isActive = false,
-                                        icon = Icons.Default.NotificationsOff,
-                                        onClick = { openNotificationSettings(context) }
-                                    )
-                                    first = false
-                                }
-
-                                if (needsAlarmPermission) {
-                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                                    PermissionStatusItem(
-                                        title = "Exact Alarm Timing",
-                                        statusText = "Delayed (Tap to allow)",
-                                        isActive = false,
-                                        icon = Icons.Default.TimerOff,
-                                        onClick = { openAlarmSettings(context) }
-                                    )
-                                    first = false
-                                }
-
-                                if (needsOverlayPermission) {
-                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                                    PermissionStatusItem(
-                                        title = "Overlay Permission",
-                                        statusText = "Required for Bubble (Tap)",
-                                        isActive = false,
-                                        icon = Icons.Default.LayersClear,
-                                        onClick = { openOverlaySettings(context) }
-                                    )
-                                    first = false
-                                }
-
-                                if (needsBatteryPermission) {
-                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                                    PermissionStatusItem(
-                                        title = "Battery Optimization",
-                                        statusText = "Restricted (Tap to fix)",
-                                        isActive = false,
-                                        icon = Icons.Default.BatteryAlert,
-                                        onClick = { requestIgnoreBatteryOptimizations(context) }
-                                    )
-                                    first = false
-                                }
-
-                                if (hasNetworkIssue) {
-                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                                    PermissionStatusItem(
-                                        title = "Network Access",
-                                        statusText = "No Connection",
-                                        isActive = false,
-                                        icon = Icons.Default.WifiOff,
-                                        onClick = { /* Check network settings */ }
-                                    )
-                                    first = false
-                                }
-
-                                if (needsInstallPermission) {
-                                    if (!first) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-                                    PermissionStatusItem(
-                                        title = "Install APKs",
-                                        statusText = "Blocked (Tap to allow)",
-                                        isActive = false,
-                                        icon = Icons.Default.Error,
-                                        onClick = { openInstallUnknownAppsSettings(context) }
-                                    )
-                                }
-                            }
-                        }
-                    }
                     
-                    Spacer(modifier = Modifier.height(100.dp))
+                    Spacer(modifier = Modifier.height(120.dp))
                 }
 
-                // Glassy Save Success Notification (Top)
-                AnimatedVisibility(
-                    visible = showSaveSuccess,
-                    enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-                    exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 40.dp)
-                ) {
-                    ElysiumGlassCard(
-                        modifier = Modifier
-                            .padding(horizontal = 32.dp)
-                            .widthIn(max = 300.dp),
-                        statusColor = Constants.COLOR_SUCCESS,
-                        cornerRadius = 20.dp
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = Constants.COLOR_SUCCESS,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                text = "Settings Saved",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-
-                // DONATION BOTTOM SHEET
-                if (showDonationSheet) {
-                    ModalBottomSheet(
-                        onDismissRequest = { showDonationSheet = false },
-                        sheetState = donationSheetState,
-                        containerColor = Color.Transparent,
-                        dragHandle = null,
-                        scrimColor = Color.Black.copy(alpha = 0.4f)
-                    ) {
-                        ElysiumGlassCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                                .padding(bottom = 32.dp),
-                            cornerRadius = 28.dp
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp, 4.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
-                                )
-                                
-                                Spacer(modifier = Modifier.height(24.dp))
-                                
-                                Text(
-                                    text = Constants.DONATION_TITLE,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                
-                                Spacer(modifier = Modifier.height(8.dp))
-                                
-                                Text(
-                                    text = Constants.DONATION_DESC,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Center,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                
-                                Spacer(modifier = Modifier.height(24.dp))
-                                
-                                // QR CODE IMAGE
-                                Surface(
-                                    modifier = Modifier
-                                        .size(240.dp)
-                                        .shadow(8.dp, RoundedCornerShape(24.dp)),
-                                    shape = RoundedCornerShape(24.dp),
-                                    color = Color.White,
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-                                ) {
-                                    val qrResId = context.resources.getIdentifier(Constants.RES_QR_DONATION, "drawable", context.packageName)
-                                    if (qrResId != 0) {
-                                        Image(
-                                            painter = painterResource(id = qrResId),
-                                            contentDescription = "Bank QR Code",
-                                            modifier = Modifier.fillMaxSize().padding(16.dp),
-                                            contentScale = ContentScale.Fit
-                                        )
-                                    } else {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                                                Text("QR image not found", style = MaterialTheme.typography.labelSmall)
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                Spacer(modifier = Modifier.height(24.dp))
-                                
-                                Button(
-                                    onClick = { showDonationSheet = false },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary
-                                    )
-                                ) {
-                                    Text("Done", fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // FLOATING SAVE/CANCEL BAR
+                // GLASSY SAVE BAR
                 AnimatedVisibility(
                     visible = hasChanges,
                     enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                     exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp)
+                        .padding(bottom = 24.dp)
                 ) {
-                    Surface(
+                    ElysiumGlassCard(
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
                             .fillMaxWidth()
-                            .height(64.dp)
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                                    )
-                                ),
-                                shape = RoundedCornerShape(32.dp)
-                            ),
-                        shape = RoundedCornerShape(32.dp),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        tonalElevation = 8.dp,
-                        shadowElevation = 8.dp
+                            .height(72.dp),
+                        cornerRadius = 36.dp,
+                        glowColor = MaterialTheme.colorScheme.primary
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 8.dp),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -694,25 +531,28 @@ fun ProfileScreen(
                                 onClick = {
                                     pendingThemeMode = themeMode
                                     pendingHapticEnabled = hapticEnabled
+                                    pendingVibrateOnly = vibrateOnly
                                     pendingSound = savedSound
                                     pendingBossNotif = savedBossNotif
                                     pendingEventNotif = savedEventNotif
                                     pendingBubbleEnabled = savedBubbleEnabled
                                     pendingLocalTimezone = savedLocalTimezone
                                 },
-                                modifier = Modifier.weight(1f).fillMaxHeight()
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                shape = CircleShape
                             ) {
                                 Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Cancel")
+                                Text("Discard")
                             }
 
-                            VerticalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                            VerticalDivider(modifier = Modifier.padding(vertical = 20.dp), thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
 
                             TextButton(
                                 onClick = {
                                     preferenceManager.setThemeMode(pendingThemeMode)
                                     preferenceManager.setHapticFeedbackEnabled(pendingHapticEnabled)
+                                    preferenceManager.setVibrateOnlyEnabled(pendingVibrateOnly)
                                     preferenceManager.setNotificationSound(pendingSound)
                                     preferenceManager.setBossNotificationsEnabled(pendingBossNotif)
                                     preferenceManager.setEventNotificationsEnabled(pendingEventNotif)
@@ -721,11 +561,77 @@ fun ProfileScreen(
                                     showSaveSuccess = true
                                 },
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Save Changes", fontWeight = FontWeight.Bold)
+                                Text("Save Settings", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                // Save Success Notification
+                AnimatedVisibility(
+                    visible = showSaveSuccess,
+                    enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 40.dp)
+                ) {
+                    ElysiumGlassCard(
+                        modifier = Modifier.padding(horizontal = 32.dp).widthIn(max = 300.dp),
+                        statusColor = Constants.COLOR_SUCCESS,
+                        cornerRadius = 20.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Constants.COLOR_SUCCESS, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text(text = "Configuration Saved", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // DONATION BOTTOM SHEET (QR)
+                if (showDonationSheet) {
+                    ModalBottomSheet(
+                        onDismissRequest = { showDonationSheet = false },
+                        sheetState = donationSheetState,
+                        containerColor = Color.Transparent,
+                        dragHandle = null
+                    ) {
+                        ElysiumGlassCard(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp).padding(bottom = 32.dp),
+                            cornerRadius = 28.dp
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(modifier = Modifier.size(40.dp, 4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)))
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Text(text = Constants.DONATION_TITLE, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = Constants.DONATION_DESC, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Surface(
+                                    modifier = Modifier.size(240.dp).shadow(8.dp, RoundedCornerShape(24.dp)),
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = Color.White
+                                ) {
+                                    val qrResId = context.resources.getIdentifier(Constants.RES_QR_DONATION, "drawable", context.packageName)
+                                    if (qrResId != 0) {
+                                        Image(painter = painterResource(id = qrResId), contentDescription = "QR Code", modifier = Modifier.fillMaxSize().padding(16.dp), contentScale = ContentScale.Fit)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Button(onClick = { showDonationSheet = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                                    Text("Done", fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -741,7 +647,6 @@ private fun playSoundPreview(context: Context, soundName: String) {
     try {
         mediaPlayer?.stop()
         mediaPlayer?.release()
-        
         val resId = context.resources.getIdentifier(soundName, "raw", context.packageName)
         if (resId != 0) {
             mediaPlayer = MediaPlayer.create(context, resId)
@@ -769,7 +674,9 @@ private fun openInstallUnknownAppsSettings(context: Context) {
 
 private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
     val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-    return powerManager.isIgnoringBatteryOptimizations(context.packageName)
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        powerManager.isIgnoringBatteryOptimizations(context.packageName)
+    } else true
 }
 
 private fun canScheduleExactAlarms(context: Context): Boolean {
@@ -781,7 +688,9 @@ private fun canScheduleExactAlarms(context: Context): Boolean {
 
 private fun isNetworkAvailable(context: Context): Boolean {
     val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    val network = connectivityManager.activeNetwork ?: return false
+    val network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        connectivityManager.activeNetwork ?: return false
+    } else return true
     val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
     return when {
         activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
@@ -799,7 +708,6 @@ private fun requestIgnoreBatteryOptimizations(context: Context) {
         try {
             context.startActivity(intent)
         } catch (e: Exception) {
-            // Fallback to settings page if direct request is blocked
             val settingsIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
             context.startActivity(settingsIntent)
         }

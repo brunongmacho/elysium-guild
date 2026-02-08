@@ -1,12 +1,23 @@
 package com.elysium.guild.ui.navigation
 
-import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -26,12 +37,27 @@ fun ElysiumNavigation(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            CustomElysiumNavigationBar {
                 bottomNavItems.forEach { item ->
+                    val isSelected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+                    
                     NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = null) },
-                        label = { Text(item.label) },
-                        selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
+                        icon = { 
+                            Icon(
+                                item.icon, 
+                                contentDescription = null,
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            ) 
+                        },
+                        label = { 
+                            Text(
+                                item.label,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium
+                            ) 
+                        },
+                        selected = isSelected,
                         onClick = {
                             navController.navigate(item.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -40,7 +66,10 @@ fun ElysiumNavigation(
                                 launchSingleTop = true
                                 restoreState = true
                             }
-                        }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color.Transparent // Hide default pill
+                        )
                     )
                 }
             }
@@ -66,6 +95,45 @@ fun ElysiumNavigation(
                     preferenceManager = preferenceManager
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun CustomElysiumNavigationBar(
+    content: @Composable RowScope.() -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        tonalElevation = 8.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(16.dp)
+    ) {
+        Column {
+            // Top glowing border line
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+            
+            NavigationBar(
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                tonalElevation = 0.dp,
+                modifier = Modifier.height(80.dp),
+                content = content
+            )
         }
     }
 }

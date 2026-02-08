@@ -1,8 +1,7 @@
 package com.elysium.guild.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -81,24 +81,57 @@ fun MemberAvatarCard(
 fun SettingsCard(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    initiallyExpanded: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    ElysiumGlassCard(modifier = Modifier.padding(vertical = 4.dp)) {
+    var isExpanded by remember { mutableStateOf(initiallyExpanded) }
+    val rotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        label = "Rotation"
+    )
+
+    ElysiumGlassCard(
+        modifier = Modifier.padding(vertical = 4.dp),
+        onClick = { isExpanded = !isExpanded }
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.rotate(rotation),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
             }
-            content()
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    content()
+                }
+            }
         }
     }
 }
@@ -108,7 +141,9 @@ fun NotificationToggle(
     title: String,
     description: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    iconColor: Color = MaterialTheme.colorScheme.primary
 ) {
     val isDark = isSystemInDarkTheme()
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -126,23 +161,38 @@ fun NotificationToggle(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-            )
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(iconColor.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+            }
+
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // Robust Glassy Switch
+        // Robust Glassy Switch with Glow
         val thumbOffset by animateDpAsState(
             targetValue = if (checked) 24.dp else 0.dp,
             animationSpec = tween(durationMillis = 200),
@@ -158,6 +208,12 @@ fun NotificationToggle(
         Box(
             modifier = Modifier
                 .size(52.dp, 28.dp)
+                .shadow(
+                    elevation = if (checked) 8.dp else 0.dp,
+                    shape = CircleShape,
+                    ambientColor = primaryColor,
+                    spotColor = primaryColor
+                )
                 .background(trackColor, CircleShape)
                 .border(
                     width = 1.dp,
