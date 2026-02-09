@@ -6,9 +6,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,120 +18,47 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.elysium.guild.utils.Constants
-
-@Composable
-fun MemberAvatarCard(
-    name: String,
-    rank: String,
-    avatarUrl: String?
-) {
-    ElysiumGlassCard {
-        Column(
-            modifier = Modifier
-                .padding(24.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(104.dp)
-                    .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), CircleShape)
-                    .padding(2.dp)
-            ) {
-                AsyncImage(
-                    model = avatarUrl ?: "https://cdn.discordapp.com/embed/avatars/0.png",
-                    contentDescription = "Avatar of $name",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = name,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            
-            Text(
-                text = rank,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
 
 @Composable
 fun SettingsCard(
     title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    initiallyExpanded: Boolean = true,
-    content: @Composable () -> Unit
+    icon: ImageVector,
+    content: @Composable ColumnScope.() -> Unit
 ) {
-    var isExpanded by remember { mutableStateOf(initiallyExpanded) }
-    val rotation by animateFloatAsState(
-        targetValue = if (isExpanded) 180f else 0f,
-        label = "Rotation"
-    )
-
-    ElysiumGlassCard(
-        modifier = Modifier.padding(vertical = 4.dp),
-        onClick = { isExpanded = !isExpanded }
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
-
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    modifier = Modifier.rotate(rotation),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    content()
-                }
-            }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+        
+        ElysiumGlassCard(cornerRadius = 20.dp) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                content = content
+            )
         }
     }
 }
@@ -142,101 +69,215 @@ fun NotificationToggle(
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    iconColor: Color = MaterialTheme.colorScheme.primary
+    icon: ImageVector,
+    iconGradient: List<Color>
 ) {
-    val isDark = isSystemInDarkTheme()
-    val primaryColor = MaterialTheme.colorScheme.primary
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = { onCheckedChange(!checked) }
-            )
-            .padding(vertical = 12.dp, horizontal = 4.dp),
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(iconColor.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-            }
-
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        // Robust Glassy Switch with Glow
-        val thumbOffset by animateDpAsState(
-            targetValue = if (checked) 24.dp else 0.dp,
-            animationSpec = tween(durationMillis = 200),
-            label = "ThumbAnimation"
-        )
-
-        val trackColor by animateColorAsState(
-            targetValue = if (checked) primaryColor.copy(alpha = if (isDark) 0.3f else 0.2f)
-                          else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-            label = "TrackColor"
-        )
-
-        Box(
-            modifier = Modifier
-                .size(52.dp, 28.dp)
-                .shadow(
-                    elevation = if (checked) 8.dp else 0.dp,
-                    shape = CircleShape,
-                    ambientColor = primaryColor,
-                    spotColor = primaryColor
-                )
-                .background(trackColor, CircleShape)
-                .border(
-                    width = 1.dp,
-                    brush = if (checked) {
-                        Brush.linearGradient(listOf(primaryColor.copy(alpha = 0.8f), primaryColor.copy(alpha = 0.4f)))
-                    } else {
-                        Brush.linearGradient(listOf(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)))
-                    },
-                    shape = CircleShape
-                )
-        ) {
             Box(
                 modifier = Modifier
-                    .padding(4.dp)
-                    .offset(x = thumbOffset)
-                    .size(20.dp)
-                    .background(
-                        if (checked) primaryColor
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                        CircleShape
-                    )
-                    .shadow(if (checked) 4.dp else 0.dp, CircleShape)
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Brush.linearGradient(iconGradient.map { it.copy(alpha = 0.2f) })),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon, 
+                    contentDescription = null, 
+                    tint = iconGradient.first(), 
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = MaterialTheme.colorScheme.primary
             )
+        )
+    }
+}
+
+@Composable
+fun PermissionStatusItem(
+    title: String,
+    statusText: String,
+    isActive: Boolean,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (isActive) Color(0xFF10B981) else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(text = title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isActive) Color(0xFF10B981) else MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            )
+        }
+    }
+}
+
+@Composable
+fun SoundSelectionItem(
+    title: String = "Notification Sound",
+    selectedSound: String,
+    onSoundSelected: (String) -> Unit
+) {
+    val sounds = remember {
+        listOf(
+            "terran_launch", 
+            "terran_attack", 
+            "terran_addon", 
+            "terran_detected",
+            "siege_tank", 
+            "marine_want",
+            "goliath_target",
+            "science_vessel",
+            "ghost_reporting",
+            "ghost_exterminator"
+        ).sorted()
+    }
+
+    val displaySounds = remember(selectedSound) {
+        val list = sounds.toMutableList()
+        if (list.contains(selectedSound)) {
+            list.remove(selectedSound)
+            list.add(0, selectedSound)
+        }
+        list
+    }
+
+    var expanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        Box {
+            Surface(
+                onClick = { expanded = true },
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = selectedSound.replace("_", " ").replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            ) {
+                displaySounds.forEach { sound ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = sound.replace("_", " ").replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (selectedSound == sound) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedSound == sound) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        onClick = {
+                            onSoundSelected(sound)
+                            expanded = false
+                        },
+                        trailingIcon = {
+                            if (selectedSound == sound) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -248,335 +289,215 @@ fun ThemeOptionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
-    val primaryColor = MaterialTheme.colorScheme.primary
-
     Surface(
         onClick = onClick,
         modifier = modifier.height(40.dp),
         shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) primaryColor.copy(alpha = if (isDark) 0.25f else 0.15f)
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-        border = BorderStroke(
-            width = 1.dp,
-            brush = if (isSelected) {
-                Brush.linearGradient(
-                    colors = listOf(
-                        primaryColor.copy(alpha = 0.8f),
-                        primaryColor.copy(alpha = 0.2f)
-                    )
-                )
-            } else {
-                Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-                    )
-                )
-            }
-        )
+        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
-                color = if (isSelected) primaryColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SoundSelectionItem(
-    selectedSound: String,
-    onSoundSelected: (String) -> Unit
+fun ThemePreviewCard(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    isDark: Boolean,
+    isSystem: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val isDark = isSystemInDarkTheme()
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val accentColor = if (isDark) Color(0xFFA78BFA) else Color(0xFF6366F1)
+    
+    val infiniteTransition = rememberInfiniteTransition(label = "ThemePreviewGlow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "GlowAlpha"
+    )
 
-    val sounds = remember(selectedSound) {
-        listOf(
-            "terran_launch" to "Terran Launch",
-            "siege_tank" to "Siege Tank",
-            "marine_want" to "Marine Want",
-            "terran_addon" to "Terran Addon",
-            "terran_attack" to "Terran Attack",
-            "goliath_target" to "Goliath Target",
-            "science_vessel" to "Science Vessel",
-            "ghost_reporting" to "Ghost Reporting",
-            "terran_detected" to "Terran Detected",
-            "ghost_exterminator" to "Ghost Exterminator"
-        )
-        .sortedBy { it.second }
-        .let { sortedList ->
-            val (selected, rest) = sortedList.partition { it.first == selectedSound }
-            selected + rest
-        }
-    }
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.05f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "Scale"
+    )
 
-    val currentDisplayName = sounds.find { it.first == selectedSound }?.second ?: selectedSound
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Notification Sound",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-            modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .drawBehind {
+                    if (isSelected) {
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(primaryColor.copy(alpha = 0.2f * glowAlpha), Color.Transparent),
+                                center = center,
+                                radius = size.maxDimension / 1.5f
+                            )
+                        )
+                    }
+                }
         ) {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                border = BorderStroke(
-                    width = 1.dp,
-                    brush = if (expanded) {
-                        Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f), MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)))
-                    } else {
-                        Brush.linearGradient(listOf(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)))
-                    }
-                )
+                    .fillMaxSize()
+                    .padding(8.dp)
+                    .border(
+                        width = if (isSelected) 2.dp else 1.dp,
+                        brush = if (isSelected) {
+                            Brush.sweepGradient(listOf(primaryColor, accentColor, primaryColor))
+                        } else {
+                            Brush.linearGradient(listOf(Color.White.copy(alpha = 0.1f), Color.White.copy(alpha = 0.05f)))
+                        },
+                        shape = RoundedCornerShape(20.dp)
+                    ),
+                shape = RoundedCornerShape(20.dp),
+                color = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                shadowElevation = if (isSelected) 16.dp else 4.dp,
+                tonalElevation = if (isSelected) 8.dp else 0.dp
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // System theme split view simulation
+                    if (isSystem) {
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            Box(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFFF8FAFC)))
+                            Box(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF0F172A)))
+                        }
+                    }
+
+                    // Simulated UI
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Status Bar
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Box(modifier = Modifier.size(32.dp, 4.dp).clip(CircleShape).background(if (isDark && !isSystem) Color.White.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.1f)))
+                            Row(spacing = 4.dp) {
+                                repeat(2) { Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(if (isDark && !isSystem) Color.White.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.1f))) }
+                            }
+                        }
+
+                        // Hero Section
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(accentColor.copy(alpha = 0.8f), primaryColor.copy(alpha = 0.8f))
+                                    )
+                                )
                         ) {
                             Icon(
-                                Icons.Default.MusicNote,
+                                Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.align(Alignment.Center).size(16.dp),
+                                tint = Color.White
                             )
                         }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                text = currentDisplayName,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Tap to change",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+
+                        // List Items
+                        repeat(2) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(modifier = Modifier.size(14.dp).clip(CircleShape).background(accentColor.copy(alpha = 0.2f)))
+                                Box(modifier = Modifier.size(40.dp, 4.dp).clip(CircleShape).background(if (isDark && !isSystem) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.05f)))
+                            }
+                        }
+                    }
+
+                    // Selection Glow / Checkmark
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(primaryColor)
+                                .border(2.dp, Color.White, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        }
+                    }
+
+                    if (isSystem) {
+                        Surface(
+                            modifier = Modifier.align(Alignment.Center),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            border = BorderStroke(1.dp, primaryColor.copy(alpha = 0.3f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SettingsSuggest,
+                                contentDescription = null,
+                                modifier = Modifier.padding(6.dp).size(20.dp),
+                                tint = primaryColor
                             )
                         }
                     }
-                    Icon(
-                        if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-                    .exposedDropdownSize()
-            ) {
-                sounds.forEach { (id, name) ->
-                    val isSelected = id == selectedSound
-                    DropdownMenuItem(
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (isSelected) Icons.Default.VolumeUp else Icons.Default.VolumeMute,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                                if (isSelected) {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        },
-                        onClick = {
-                            onSoundSelected(id)
-                            expanded = false
-                        },
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun PermissionStatusItem(
-    title: String,
-    statusText: String,
-    isActive: Boolean,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onClick() }.padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-            )
-        }
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(
-                    if (isActive) Color(0xFF4CAF50).copy(alpha = 0.1f)
-                    else MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun MemberStatsGrid(
-    totalPoints: Int,
-    availablePoints: Int,
-    attendanceRate: Double,
-    currentStreak: Int,
-    weeklyRank: Int
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+        
+        Spacer(modifier = Modifier.height(10.dp))
+        
         Text(
-            text = "Statistics",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.padding(start = 4.dp)
-        )
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            StatCard(
-                label = "Total Points",
-                value = totalPoints.toString(),
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                label = "Available",
-                value = availablePoints.toString(),
-                modifier = Modifier.weight(1f)
-            )
-        }
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            StatCard(
-                label = "Attendance",
-                value = "${(attendanceRate * 100).toInt()}%",
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                label = "Current Streak",
-                value = "$currentStreak days",
-                modifier = Modifier.weight(1f)
-            )
-        }
-        
-        StatCard(
-            label = "Weekly Rank",
-            value = "#$weeklyRank",
-            modifier = Modifier.fillMaxWidth()
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+            color = if (isSelected) primaryColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            letterSpacing = 1.sp
         )
     }
 }
 
+// Helper to use Arrangement.spacedBy in older Compose or just simulate it if needed
 @Composable
-private fun StatCard(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
+private fun Row(
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
+    verticalAlignment: Alignment.Vertical = Alignment.Top,
+    spacing: androidx.compose.ui.unit.Dp = 0.dp,
+    content: @Composable RowScope.() -> Unit
 ) {
-    ElysiumGlassCard(
-        modifier = modifier
+    androidx.compose.foundation.layout.Row(
+        modifier = modifier,
+        horizontalArrangement = horizontalArrangement,
+        verticalAlignment = verticalAlignment
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
+        content()
     }
 }

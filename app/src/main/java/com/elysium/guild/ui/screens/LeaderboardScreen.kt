@@ -1,10 +1,13 @@
 package com.elysium.guild.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,7 +43,6 @@ fun LeaderboardScreen(
     val screenWidth = configuration.screenWidthDp.dp
     val listState = rememberLazyListState()
 
-    // Tracking scroll for parallax consistency with Boss screen
     val scrollOffset = remember { 
         derivedStateOf { 
             listState.firstVisibleItemScrollOffset.toFloat() + listState.firstVisibleItemIndex * 500f 
@@ -67,7 +69,6 @@ fun LeaderboardScreen(
                 ) {
                     Spacer(modifier = Modifier.height(headerSpacing))
                     
-                    // Centered Header
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -94,42 +95,16 @@ fun LeaderboardScreen(
                     
                     Spacer(modifier = Modifier.height(headerSpacing))
 
-                    // Search Bar
-                    OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = { viewModel.onSearchQueryChanged(it) },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = {
-                            Text(
-                                "Search members...",
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                                fontSize = if (screenWidth < 360.dp) 12.sp else 14.sp
-                            )
-                        },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
-                        trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
-                            {
-                                IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
-                                }
-                            }
-                        } else null,
-                        shape = RoundedCornerShape(16.dp),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                            unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                        ),
-                        textStyle = LocalTextStyle.current.copy(fontSize = if (screenWidth < 360.dp) 12.sp else 14.sp)
+                    ElysiumGlassSearchBar(
+                        query = uiState.searchQuery,
+                        onQueryChange = { viewModel.onSearchQueryChanged(it) },
+                        onClear = { viewModel.onSearchQueryChanged("") },
+                        placeholder = "Search members...",
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(headerSpacing))
                     
-                    // Type Selection
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -151,7 +126,6 @@ fun LeaderboardScreen(
                     
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Sub-Filter Selection
                     val subFilterScrollState = rememberScrollState()
                     Row(
                         modifier = Modifier
@@ -200,8 +174,6 @@ fun LeaderboardScreen(
                             else -> {
                                 val sortedList = uiState.sortedLeaderboard
                                 Column(modifier = Modifier.fillMaxSize()) {
-                                    // Freeze podium at the top (it no longer scrolls)
-                                    // Keep it always visible during search so highlights can be seen in it
                                     AnimatedVisibility(
                                         visible = uiState.searchQuery.isEmpty(),
                                         enter = expandVertically() + fadeIn(),
@@ -223,12 +195,19 @@ fun LeaderboardScreen(
                                         modifier = Modifier.weight(1f),
                                         contentPadding = PaddingValues(bottom = 80.dp)
                                     ) {
-                                        items(
+                                        itemsIndexed(
                                             items = itemsToShow,
-                                            key = { "${it.memberId}_${uiState.leaderboardType}" }
-                                        ) { member ->
+                                            key = { _, it -> "${it.memberId}_${uiState.leaderboardType}" }
+                                        ) { index, member ->
                                             LeaderboardMemberCard(
-                                                modifier = Modifier.animateItem(),
+                                                modifier = Modifier.animateItem(
+                                                    fadeInSpec = tween(300, delayMillis = (index % 10) * 50),
+                                                    fadeOutSpec = tween(300),
+                                                    placementSpec = spring(
+                                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                        stiffness = Spring.StiffnessLow
+                                                    )
+                                                ),
                                                 member = member,
                                                 rank = sortedList.indexOfFirst { it.memberId == member.memberId } + 1,
                                                 type = uiState.leaderboardType,

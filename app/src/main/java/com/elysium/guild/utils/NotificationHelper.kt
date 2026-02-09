@@ -32,45 +32,60 @@ class NotificationHelper @Inject constructor(
 
     private fun getChannelIdForCurrentSound(): String {
         val soundName = preferenceManager.notificationSound.value
-        return "${BASE_CHANNEL_ID}_$soundName"
+        val vibrateOnly = preferenceManager.vibrateOnly.value
+        val hapticEnabled = preferenceManager.hapticEnabled.value
+        
+        return if (vibrateOnly) {
+            "${BASE_CHANNEL_ID}_vibrate_mode"
+        } else {
+            "${BASE_CHANNEL_ID}_${soundName}_haptic_${hapticEnabled}"
+        }
     }
 
     fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val soundName = preferenceManager.notificationSound.value
+            val vibrateOnly = preferenceManager.vibrateOnly.value
+            val hapticEnabled = preferenceManager.hapticEnabled.value
             val channelId = getChannelIdForCurrentSound()
 
             val name = "Boss & Event Alerts"
             val descriptionText = "Notifications for boss spawns and guild events."
             val importance = NotificationManager.IMPORTANCE_HIGH
 
-            // Robust sound resource handling
-            val resId = try {
-                val id = context.resources.getIdentifier(soundName, "raw", context.packageName)
-                if (id != 0) id else R.raw.terran_launch
-            } catch (e: Exception) {
-                R.raw.terran_launch
-            }
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             
-            val soundUri = Uri.parse("android.resource://${context.packageName}/$resId")
-
-            val audioAttributes = AudioAttributes.Builder()
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
-                .build()
-
             val channel = NotificationChannel(channelId, name, importance).apply {
                 description = descriptionText
-                enableVibration(true)
+                // If Vibrate Only is ON, we ALWAYS vibrate.
+                // If Vibrate Only is OFF, we follow the Haptic toggle.
+                enableVibration(vibrateOnly || hapticEnabled)
                 setShowBadge(true)
-                try {
-                    setSound(soundUri, audioAttributes)
-                } catch (e: Exception) {
-                    Log.e("NotificationHelper", "Failed to set sound on channel: ${e.message}")
+                
+                if (vibrateOnly) {
+                    setSound(null, null)
+                } else {
+                    val resId = try {
+                        val id = context.resources.getIdentifier(soundName, "raw", context.packageName)
+                        if (id != 0) id else R.raw.terran_launch
+                    } catch (e: Exception) {
+                        R.raw.terran_launch
+                    }
+                    
+                    val soundUri = Uri.parse("android.resource://${context.packageName}/$resId")
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                        .build()
+
+                    try {
+                        setSound(soundUri, audioAttributes)
+                    } catch (e: Exception) {
+                        Log.e("NotificationHelper", "Failed to set sound on channel: ${e.message}")
+                    }
                 }
             }
 
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }

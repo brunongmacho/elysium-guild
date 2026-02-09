@@ -16,7 +16,6 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -25,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpCenter
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,18 +36,18 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
-import com.elysium.guild.R
 import com.elysium.guild.ui.components.*
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
@@ -67,10 +67,8 @@ fun ProfileScreen(
     val isDark = isSystemInDarkTheme()
     val scrollState = rememberScrollState()
     
-    // Parallax scroll offset tracking
     val scrollOffset = remember { derivedStateOf { scrollState.value.toFloat() } }
     
-    // Preference States
     val themeMode by preferenceManager.themeMode.collectAsState()
     val hapticEnabled by preferenceManager.hapticEnabled.collectAsState()
     val vibrateOnly by preferenceManager.vibrateOnly.collectAsState()
@@ -80,7 +78,6 @@ fun ProfileScreen(
     val savedBubbleEnabled by preferenceManager.floatingBubbleEnabled.collectAsState()
     val savedLocalTimezone by preferenceManager.useLocalTimezone.collectAsState()
 
-    // Local States for change detection
     var pendingThemeMode by remember(themeMode) { mutableIntStateOf(themeMode) }
     var pendingHapticEnabled by remember(hapticEnabled) { mutableStateOf(hapticEnabled) }
     var pendingVibrateOnly by remember(vibrateOnly) { mutableStateOf(vibrateOnly) }
@@ -103,7 +100,6 @@ fun ProfileScreen(
 
     val updateState by viewModel.updateState.collectAsState()
 
-    // Permission States
     var areNotificationsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var canScheduleExactAlarms by remember { mutableStateOf(canScheduleExactAlarms(context)) }
     var canDrawOverlays by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
@@ -111,7 +107,6 @@ fun ProfileScreen(
 
     val allPermissionsEnabled = areNotificationsEnabled && canScheduleExactAlarms && canDrawOverlays && isIgnoringBatteryOptimizations
 
-    // Donation Sheet State
     var showDonationSheet by remember { mutableStateOf(false) }
     val donationSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -144,7 +139,6 @@ fun ProfileScreen(
         }
     }
 
-    // Handle Update UI Prompts
     when (val state = updateState) {
         is UpdateState.UpdateAvailable -> {
             AlertDialog(
@@ -193,7 +187,6 @@ fun ProfileScreen(
                 ) {
                     Spacer(modifier = Modifier.height(32.dp))
                     
-                    // Centered Header (Picture removed as requested)
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = Constants.TITLE_SETTINGS,
@@ -212,7 +205,6 @@ fun ProfileScreen(
                     
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 1. SYSTEM HEALTH (Hidden if everything is enabled)
                     AnimatedVisibility(
                         visible = !allPermissionsEnabled,
                         enter = expandVertically() + fadeIn(),
@@ -263,9 +255,18 @@ fun ProfileScreen(
                         }
                     }
 
-                    if (!allPermissionsEnabled) Spacer(modifier = Modifier.height(16.dp))
+                    if (!allPermissionsEnabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Some features require battery optimizations to be disabled to ensure notifications are delivered on time.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
 
-                    // 2. APP UPDATES
                     SettingsCard(
                         title = "App Update",
                         icon = Icons.Default.SystemUpdate
@@ -293,7 +294,7 @@ fun ProfileScreen(
                                     onClick = { viewModel.checkForUpdates() },
                                     enabled = updateState !is UpdateState.Checking && updateState !is UpdateState.Downloading,
                                     shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.2f else 0.1f),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.2f else if (updateState is UpdateState.Checking || updateState is UpdateState.Downloading) 0.05f else 0.1f),
                                     border = BorderStroke(
                                         width = 1.dp,
                                         brush = Brush.linearGradient(
@@ -321,6 +322,15 @@ fun ProfileScreen(
                                     }
                                 }
                             }
+
+                            if (updateState is UpdateState.Downloading) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                LinearProgressIndicator(
+                                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                                )
+                            }
                             
                             Spacer(modifier = Modifier.height(12.dp))
                             
@@ -336,7 +346,6 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 3. ALERT & INTERACTION PREFERENCES
                     SettingsCard(
                         title = "Alert and interaction",
                         icon = Icons.Default.Notifications
@@ -348,7 +357,7 @@ fun ProfileScreen(
                                 checked = pendingBossNotif,
                                 onCheckedChange = { pendingBossNotif = it },
                                 icon = Icons.Default.Timer,
-                                iconColor = Color(0xFF10B981)
+                                iconGradient = listOf(Color(0xFF10B981), Color(0xFF059669))
                             )
                             
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -359,7 +368,7 @@ fun ProfileScreen(
                                 checked = pendingEventNotif,
                                 onCheckedChange = { pendingEventNotif = it },
                                 icon = Icons.Default.Event,
-                                iconColor = Color(0xFF6366F1)
+                                iconGradient = listOf(Color(0xFF6366F1), Color(0xFF4F46E5))
                             )
 
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -377,7 +386,7 @@ fun ProfileScreen(
                                     }
                                 },
                                 icon = Icons.Default.AdsClick,
-                                iconColor = Color(0xFFF59E0B)
+                                iconGradient = listOf(Color(0xFFF59E0B), Color(0xFFD97706))
                             )
 
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -388,7 +397,7 @@ fun ProfileScreen(
                                 checked = pendingVibrateOnly,
                                 onCheckedChange = { pendingVibrateOnly = it },
                                 icon = Icons.Default.NotificationsPaused,
-                                iconColor = Color(0xFF94A3B8)
+                                iconGradient = listOf(Color(0xFF94A3B8), Color(0xFF64748B))
                             )
 
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -399,7 +408,7 @@ fun ProfileScreen(
                                 checked = pendingHapticEnabled,
                                 onCheckedChange = { pendingHapticEnabled = it },
                                 icon = Icons.Default.Vibration,
-                                iconColor = Color(0xFFEC4899)
+                                iconGradient = listOf(Color(0xFFEC4899), Color(0xFFDB2777))
                             )
 
                             if (!pendingVibrateOnly) {
@@ -418,7 +427,6 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 4. APPEARANCE & TIMEZONE
                     SettingsCard(
                         title = "Appearance and Time",
                         icon = Icons.Default.Palette
@@ -426,24 +434,28 @@ fun ProfileScreen(
                         Column {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                ThemeOptionButton(
-                                    text = "Light",
+                                ThemePreviewCard(
+                                    label = "Light",
                                     isSelected = pendingThemeMode == Constants.THEME_LIGHT,
                                     onClick = { pendingThemeMode = Constants.THEME_LIGHT },
+                                    isDark = false,
                                     modifier = Modifier.weight(1f)
                                 )
-                                ThemeOptionButton(
-                                    text = "Dark",
+                                ThemePreviewCard(
+                                    label = "Dark",
                                     isSelected = pendingThemeMode == Constants.THEME_DARK,
                                     onClick = { pendingThemeMode = Constants.THEME_DARK },
+                                    isDark = true,
                                     modifier = Modifier.weight(1f)
                                 )
-                                ThemeOptionButton(
-                                    text = "System",
+                                ThemePreviewCard(
+                                    label = "System",
                                     isSelected = pendingThemeMode == Constants.THEME_SYSTEM,
                                     onClick = { pendingThemeMode = Constants.THEME_SYSTEM },
+                                    isDark = isDark,
+                                    isSystem = true,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -456,14 +468,44 @@ fun ProfileScreen(
                                 checked = pendingLocalTimezone,
                                 onCheckedChange = { pendingLocalTimezone = it },
                                 icon = Icons.Default.Language,
-                                iconColor = Color(0xFF06B6D4)
+                                iconGradient = listOf(Color(0xFF06B6D4), Color(0xFF0891B2))
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 5. GUILD SUPPORT
+                    SettingsCard(
+                        title = "Help and Onboarding",
+                        icon = Icons.AutoMirrored.Filled.HelpCenter
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { preferenceManager.resetFirstRun() }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)))),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(imageVector = Icons.Default.RestartAlt, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(text = "Rerun Tutorial", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                Text(text = "Revisit the initial setup and permissions guide", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     SettingsCard(
                         title = "Guild Support",
                         icon = Icons.Default.Favorite
@@ -482,7 +524,7 @@ fun ProfileScreen(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                        .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)))),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(imageVector = Icons.Default.VolunteerActivism, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
@@ -502,10 +544,31 @@ fun ProfileScreen(
                         }
                     }
                     
-                    Spacer(modifier = Modifier.height(120.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
+                    
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    ) {
+                        Text(
+                            text = "Made with ❤️ for the Elysium Guild",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "⚔️ Where Chaos Becomes Strategy ⚔️",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
 
-                // GLASSY SAVE BAR
                 AnimatedVisibility(
                     visible = hasChanges,
                     enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -572,7 +635,6 @@ fun ProfileScreen(
                     }
                 }
 
-                // Save Success Notification
                 AnimatedVisibility(
                     visible = showSaveSuccess,
                     enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
@@ -596,7 +658,6 @@ fun ProfileScreen(
                     }
                 }
 
-                // DONATION BOTTOM SHEET (QR)
                 if (showDonationSheet) {
                     ModalBottomSheet(
                         onDismissRequest = { showDonationSheet = false },
@@ -657,26 +718,9 @@ private fun playSoundPreview(context: Context, soundName: String) {
     }
 }
 
-private fun canInstallPackages(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.packageManager.canRequestPackageInstalls()
-    } else true
-}
-
-private fun openInstallUnknownAppsSettings(context: Context) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-            data = Uri.parse("package:${context.packageName}")
-        }
-        context.startActivity(intent)
-    }
-}
-
 private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
     val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        powerManager.isIgnoringBatteryOptimizations(context.packageName)
-    } else true
+    return powerManager.isIgnoringBatteryOptimizations(context.packageName)
 }
 
 private fun canScheduleExactAlarms(context: Context): Boolean {
@@ -686,24 +730,10 @@ private fun canScheduleExactAlarms(context: Context): Boolean {
     } else true
 }
 
-private fun isNetworkAvailable(context: Context): Boolean {
-    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    val network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        connectivityManager.activeNetwork ?: return false
-    } else return true
-    val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
-    return when {
-        activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-        activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-        activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
-        else -> false
-    }
-}
-
 private fun requestIgnoreBatteryOptimizations(context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = Uri.parse("package:${context.packageName}")
+            data = "package:${context.packageName}".toUri()
         }
         try {
             context.startActivity(intent)
@@ -717,7 +747,7 @@ private fun requestIgnoreBatteryOptimizations(context: Context) {
 private fun openAlarmSettings(context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-            data = Uri.parse("package:${context.packageName}")
+            data = "package:${context.packageName}".toUri()
         }
         context.startActivity(intent)
     }
@@ -725,7 +755,7 @@ private fun openAlarmSettings(context: Context) {
 
 private fun openOverlaySettings(context: Context) {
     val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-        data = Uri.parse("package:${context.packageName}")
+        data = "package:${context.packageName}".toUri()
     }
     context.startActivity(intent)
 }

@@ -32,6 +32,7 @@ object Constants {
     const val KEY_BUBBLE_LAST_X = "bubble_last_x"
     const val KEY_BUBBLE_LAST_Y = "bubble_last_y"
     const val KEY_USE_LOCAL_TIMEZONE = "use_local_timezone"
+    const val KEY_IS_FIRST_RUN = "is_first_run"
 
     // Theme Modes
     const val THEME_SYSTEM = 0

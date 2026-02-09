@@ -1,6 +1,7 @@
 package com.elysium.guild.ui.components
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -11,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -24,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.elysium.guild.models.*
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.viewmodel.PointsFilter
+import kotlin.random.Random
 
 @Composable
 fun LeaderboardPodium(
@@ -44,7 +47,6 @@ fun LeaderboardPodium(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.Bottom
     ) {
-        // 2nd Place
         if (topThree.size >= 2) {
             PodiumItem(
                 member = topThree[1],
@@ -62,7 +64,6 @@ fun LeaderboardPodium(
             Spacer(modifier = Modifier.weight(1f))
         }
 
-        // 1st Place
         if (topThree.isNotEmpty()) {
             PodiumItem(
                 member = topThree[0],
@@ -78,7 +79,6 @@ fun LeaderboardPodium(
             )
         }
 
-        // 3rd Place
         if (topThree.size >= 3) {
             PodiumItem(
                 member = topThree[2],
@@ -121,102 +121,166 @@ private fun PodiumItem(
         label = "PodiumHeight"
     )
 
-    ElysiumGlassCard(
-        modifier = modifier.height(height),
-        statusColor = baseColor
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(8.dp).fillMaxWidth()
+    Box(modifier = modifier.height(height)) {
+        ElysiumGlassCard(
+            modifier = Modifier.fillMaxSize(),
+            statusColor = baseColor
         ) {
-            // Rank Circle
-            Surface(
-                shape = CircleShape,
-                color = baseColor.copy(alpha = 0.6f),
-                modifier = Modifier.size(28.dp).border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Dynamic Glitter Effect
+                PodiumGlitterEffect(
+                    color = baseColor,
+                    modifier = Modifier.matchParentSize()
+                )
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .fillMaxWidth()
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = baseColor.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .size(28.dp)
+                            .border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = rank.toString(),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val annotatedName = if (searchQuery.isEmpty()) AnnotatedString(member.username) else highlightSearchText(member.username, searchQuery, MaterialTheme.colorScheme.primary)
                     Text(
-                        text = rank.toString(),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White
+                        text = annotatedName,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            shadow = if (searchQuery.isNotEmpty()) Shadow(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                blurRadius = 8f
+                            ) else null
+                        ),
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
                     )
-                }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-            // Name inside podium
-            val annotatedName = if (searchQuery.isEmpty()) AnnotatedString(member.username) else highlightSearchText(member.username, searchQuery, MaterialTheme.colorScheme.primary)
-            Text(
-                text = annotatedName,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    shadow = if (searchQuery.isNotEmpty()) Shadow(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        blurRadius = 8f
-                    ) else null
-                ),
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Primary Stat
-            val (mainStatValue, mainStatLabel) = when (member) {
-                is AttendanceLeaderboardEntry -> "${member.attendanceRate}%" to "RATE"
-                is PointsLeaderboardEntry -> {
-                    when (pointsFilter) {
-                        PointsFilter.EARNED -> member.pointsEarned.toString() to "EARNED"
-                        PointsFilter.SPENT -> member.pointsSpent.toString() to "SPENT"
-                        PointsFilter.AVAILABLE -> member.pointsAvailable.toString() to "AVAIL"
+                    val (mainStatValue, mainStatLabel) = when (member) {
+                        is AttendanceLeaderboardEntry -> "${member.attendanceRate}%" to "RATE"
+                        is PointsLeaderboardEntry -> {
+                            when (pointsFilter) {
+                                PointsFilter.EARNED -> member.pointsEarned.toString() to "EARNED"
+                                PointsFilter.SPENT -> member.pointsSpent.toString() to "SPENT"
+                                PointsFilter.AVAILABLE -> member.pointsAvailable.toString() to "AVAIL"
+                            }
+                        }
+                        else -> "" to ""
                     }
-                }
-                else -> "" to ""
-            }
 
-            Text(
-                text = mainStatValue,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 20.sp
-            )
-            Text(
-                text = mainStatLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                fontSize = 9.sp
-            )
+                    Text(
+                        text = mainStatValue,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 20.sp
+                    )
+                    Text(
+                        text = mainStatLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        fontSize = 9.sp
+                    )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-            // Secondary Stats
-            when (member) {
-                is AttendanceLeaderboardEntry -> {
-                    PodiumSecondaryStat("Kills", member.totalKills.toString())
-                    PodiumSecondaryStat("Earned", member.pointsEarned.toString())
-                }
-                is PointsLeaderboardEntry -> {
-                    when (pointsFilter) {
-                        PointsFilter.EARNED -> {
-                            PodiumSecondaryStat("Spent", member.pointsSpent.toString())
-                            PodiumSecondaryStat("Avail", member.pointsAvailable.toString())
-                        }
-                        PointsFilter.SPENT -> {
+                    when (member) {
+                        is AttendanceLeaderboardEntry -> {
+                            PodiumSecondaryStat("Kills", member.totalKills.toString())
                             PodiumSecondaryStat("Earned", member.pointsEarned.toString())
-                            PodiumSecondaryStat("Avail", member.pointsAvailable.toString())
                         }
-                        PointsFilter.AVAILABLE -> {
-                            PodiumSecondaryStat("Earned", member.pointsEarned.toString())
-                            PodiumSecondaryStat("Spent", member.pointsSpent.toString())
+                        is PointsLeaderboardEntry -> {
+                            when (pointsFilter) {
+                                PointsFilter.EARNED -> {
+                                    PodiumSecondaryStat("Spent", member.pointsSpent.toString())
+                                    PodiumSecondaryStat("Avail", member.pointsAvailable.toString())
+                                }
+                                PointsFilter.SPENT -> {
+                                    PodiumSecondaryStat("Earned", member.pointsEarned.toString())
+                                    PodiumSecondaryStat("Avail", member.pointsAvailable.toString())
+                                }
+                                PointsFilter.AVAILABLE -> {
+                                    PodiumSecondaryStat("Earned", member.pointsEarned.toString())
+                                    PodiumSecondaryStat("Spent", member.pointsSpent.toString())
+                                }
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun PodiumGlitterEffect(color: Color, modifier: Modifier = Modifier.fillMaxSize()) {
+    val infiniteTransition = rememberInfiniteTransition(label = "Glitter")
+    
+    // Drive a continuous time value - slowed down by increasing the duration
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000000, easing = LinearEasing), // 1000 seconds for 1000 units = 1 unit per second
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "GlitterTime"
+    )
+
+    Canvas(modifier = modifier) {
+        val count = 12 // Reduced count for a cleaner, more premium feel
+        repeat(count) { index ->
+            // Significantly slowed down speed factor (0.15f to 0.3f)
+            // One cycle now takes approx 3-6 seconds
+            val speedFactor = 0.15f + (index % 3) * 0.07f
+            val particleTime = (time * speedFactor) + (index.toFloat() / count)
+            
+            val cycle = particleTime.toInt()
+            val phase = particleTime % 1f // 0.0 to 1.0
+            
+            val indRandom = Random(color.hashCode().toLong() + index + (cycle * 31L))
+            
+            val x = indRandom.nextFloat() * size.width
+            val y = indRandom.nextFloat() * size.height
+            val radius = (indRandom.nextFloat() * 1.0.dp.toPx()) + 0.5.dp.toPx()
+            
+            // Smoother fade using a sine-like curve for a more elegant transition
+            val alpha = (Math.sin(phase * Math.PI).toFloat()).coerceIn(0f, 1f)
+            
+            if (alpha > 0.01f) {
+                // Main glitter point - softer alpha
+                drawCircle(
+                    color = Color.White.copy(alpha = alpha * 0.35f * indRandom.nextFloat()),
+                    center = Offset(x, y),
+                    radius = radius
+                )
+                
+                // Secondary soft glow
+                drawCircle(
+                    color = Color.White.copy(alpha = alpha * 0.12f),
+                    center = Offset(x, y),
+                    radius = radius * 2.5f // Larger, softer glow
+                )
             }
         }
     }
@@ -261,7 +325,6 @@ fun LeaderboardMemberCard(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Rank
             Box(
                 modifier = Modifier.width(36.dp),
                 contentAlignment = Alignment.CenterStart
@@ -307,7 +370,6 @@ fun LeaderboardMemberCard(
                 )
             }
             
-            // Percentage/Main Stat Circle
             val mainValue = when (member) {
                 is AttendanceLeaderboardEntry -> "${member.attendanceRate}%"
                 is PointsLeaderboardEntry -> {

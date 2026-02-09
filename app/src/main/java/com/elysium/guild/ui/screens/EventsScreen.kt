@@ -1,5 +1,7 @@
 package com.elysium.guild.ui.screens
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,6 +25,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.airbnb.lottie.compose.*
+import com.elysium.guild.R
 import com.elysium.guild.ui.components.*
 import com.elysium.guild.ui.theme.ElysiumGuildTheme
 import com.elysium.guild.utils.PreferenceManager
@@ -42,7 +46,6 @@ fun EventsScreen(
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
 
-    // Tracking scroll for parallax consistency
     val scrollOffset = remember {
         derivedStateOf {
             listState.firstVisibleItemScrollOffset.toFloat() + listState.firstVisibleItemIndex * 500f
@@ -64,13 +67,18 @@ fun EventsScreen(
                 onRefresh = { viewModel.refreshEvents() },
                 modifier = Modifier.fillMaxSize(),
                 indicator = {
-                    PullToRefreshDefaults.Indicator(
-                        state = pullToRefreshState,
-                        isRefreshing = uiState.isRefreshing,
-                        modifier = Modifier.align(Alignment.TopCenter),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 16.dp)
+                    ) {
+                        val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_orb))
+                        LottieAnimation(
+                            composition = composition,
+                            iterations = LottieConstants.IterateForever,
+                            modifier = Modifier.size(60.dp)
+                        )
+                    }
                 }
             ) {
                 Column(
@@ -80,7 +88,11 @@ fun EventsScreen(
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Centered Header using Centralized Constants
+                    if (uiState.error != null && uiState.events.isNotEmpty()) {
+                        OfflineBanner()
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -112,20 +124,18 @@ fun EventsScreen(
                         }
                         
                         uiState.error != null && uiState.events.isEmpty() -> {
-                            val errorMessage = uiState.error ?: "Unknown error"
                             ErrorMessage(
-                                message = errorMessage,
+                                message = uiState.error ?: "Unknown error",
                                 onRetry = { viewModel.refreshEvents() }
                             )
                         }
                         
                         else -> {
                             Box(modifier = Modifier.fillMaxSize()) {
-                                // Vertical Timeline Line
                                 if (uiState.events.isNotEmpty()) {
                                     Box(
                                         modifier = Modifier
-                                            .padding(start = 21.dp) // Align with icon centers
+                                            .padding(start = 21.dp)
                                             .fillMaxHeight()
                                             .width(1.dp)
                                             .background(
@@ -152,6 +162,14 @@ fun EventsScreen(
                                         key = { _, event -> event.id }
                                     ) { index, event ->
                                         EventCard(
+                                            modifier = Modifier.animateItem(
+                                                fadeInSpec = tween(300, delayMillis = (index % 10) * 50),
+                                                fadeOutSpec = tween(300),
+                                                placementSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessLow
+                                                )
+                                            ),
                                             event = event,
                                             currentTime = currentTime,
                                             useLocalTimezone = useLocalTimezone,
@@ -165,13 +183,5 @@ fun EventsScreen(
                 }
             }
         }
-    }
-}
-
-@Preview
-@Composable
-fun EventsScreenPreview() {
-    ElysiumGuildTheme {
-        // EventsScreen(navController = NavController())
     }
 }

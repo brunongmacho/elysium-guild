@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 24,
-  "latestVersionName": "1.1.8",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.8/app-debug.apk",
-  "releaseNotes": "- Premium Glass Morphism: Enhanced UI with consistent glass cards and glow effects across all screens.\n- Dynamic Backgrounds: Time-of-day aware background shifts (Day/Night) with scroll parallax.\n- Urgency Pulse & Heat Map: Bosses and events now pulse when ready, with urgent color-coded countdowns.\n- Frozen Podium: Top 3 ranks are now sticky at the top for better visibility during scrolling.\n- Glowing Search: Highly visible search highlighting with primary glow effects.\n- Settings Revamp: New System Health dashboard, colored row icons, and a premium floating save bar.\n- Vibrate Only Mode: New option for silent haptic alerts in settings.\n- Performance & Stability: Modernized internal APIs and addressed deprecated warnings.",
+  "latestVersionCode": 25,
+  "latestVersionName": "1.1.9",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.1.9/app-debug.apk",
+  "releaseNotes": "- UI improvements and bug fixes.",
   "isForceUpdate": false
 }

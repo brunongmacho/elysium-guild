@@ -39,6 +39,9 @@ class PreferenceManager @Inject constructor(
     private val _useLocalTimezone = MutableStateFlow(prefs.getBoolean(Constants.KEY_USE_LOCAL_TIMEZONE, false))
     val useLocalTimezone: StateFlow<Boolean> = _useLocalTimezone.asStateFlow()
 
+    private val _isFirstRun = MutableStateFlow(prefs.getBoolean(Constants.KEY_IS_FIRST_RUN, true))
+    val isFirstRun: StateFlow<Boolean> = _isFirstRun.asStateFlow()
+
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
         when (key) {
             Constants.KEY_THEME_MODE -> _themeMode.value = sharedPrefs.getInt(key, Constants.THEME_SYSTEM)
@@ -49,6 +52,7 @@ class PreferenceManager @Inject constructor(
             Constants.KEY_EVENT_REMINDERS -> _eventNotificationsEnabled.value = sharedPrefs.getBoolean(key, true)
             Constants.KEY_FLOATING_BUBBLE_ENABLED -> _floatingBubbleEnabled.value = sharedPrefs.getBoolean(key, false)
             Constants.KEY_USE_LOCAL_TIMEZONE -> _useLocalTimezone.value = sharedPrefs.getBoolean(key, false)
+            Constants.KEY_IS_FIRST_RUN -> _isFirstRun.value = sharedPrefs.getBoolean(key, true)
         }
     }
 
@@ -90,5 +94,13 @@ class PreferenceManager @Inject constructor(
     
     fun setUseLocalTimezone(enabled: Boolean) {
         prefs.edit().putBoolean(Constants.KEY_USE_LOCAL_TIMEZONE, enabled).apply()
+    }
+
+    fun setFirstRunCompleted() {
+        prefs.edit().putBoolean(Constants.KEY_IS_FIRST_RUN, false).apply()
+    }
+
+    fun resetFirstRun() {
+        prefs.edit().putBoolean(Constants.KEY_IS_FIRST_RUN, true).apply()
     }
 }

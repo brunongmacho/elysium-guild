@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import coil.size.Size
 import com.elysium.guild.models.*
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.UIUtils
@@ -155,27 +157,53 @@ fun BossTimerCard(
 fun highlightSearchText(text: String, query: String, highlightColor: Color): AnnotatedString {
     if (query.isEmpty()) return AnnotatedString(text)
     
+    val queries = query.split(" ").filter { it.isNotEmpty() }
+    
     return buildAnnotatedString {
-        val lowerText = text.lowercase()
-        val lowerQuery = query.lowercase()
-        var start = 0
-        while (start < text.length) {
-            val index = lowerText.indexOf(lowerQuery, start)
-            if (index == -1) {
-                append(text.substring(start))
-                break
-            } else {
-                append(text.substring(start, index))
-                withStyle(style = SpanStyle(
-                    color = highlightColor, 
-                    fontWeight = FontWeight.Black,
-                    background = highlightColor.copy(alpha = 0.1f)
-                )) {
-                    append(text.substring(index, index + query.length))
-                }
-                start = index + query.length
+        var currentText = text
+        var lastIndex = 0
+        
+        val matches = mutableListOf<IntRange>()
+        queries.forEach { q ->
+            var start = 0
+            while (true) {
+                val index = text.indexOf(q, start, ignoreCase = true)
+                if (index == -1) break
+                matches.add(index until index + q.length)
+                start = index + q.length
             }
         }
+        
+        // Sort and merge overlapping ranges
+        val sortedMatches = matches.sortedBy { it.first }
+        val mergedMatches = mutableListOf<IntRange>()
+        if (sortedMatches.isNotEmpty()) {
+            var currentRange = sortedMatches[0]
+            for (i in 1 until sortedMatches.size) {
+                val nextRange = sortedMatches[i]
+                if (nextRange.first <= currentRange.last) {
+                    currentRange = currentRange.first until maxOf(currentRange.last, nextRange.last)
+                } else {
+                    mergedMatches.add(currentRange)
+                    currentRange = nextRange
+                }
+            }
+            mergedMatches.add(currentRange)
+        }
+        
+        var currentIndex = 0
+        mergedMatches.forEach { range ->
+            append(text.substring(currentIndex, range.first))
+            withStyle(style = SpanStyle(
+                color = highlightColor, 
+                fontWeight = FontWeight.Black,
+                background = highlightColor.copy(alpha = 0.1f)
+            )) {
+                append(text.substring(range.first, range.last))
+            }
+            currentIndex = range.last
+        }
+        append(text.substring(currentIndex))
     }
 }
 
@@ -186,6 +214,7 @@ private fun StatusBadge(
     statusColor: Color
 ) {
     val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || (boss.timeRemaining ?: 1L) <= 0L
+    val isSoon = !isReady && (boss.status == Constants.STATUS_SOON || (boss.timeRemaining != null && boss.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
     val isDark = isSystemInDarkTheme()
 
     if (isReady) {
@@ -206,13 +235,24 @@ private fun StatusBadge(
             shadowElevation = 4.dp,
             modifier = Modifier.scale(badgeScale)
         ) {
-            Text(
-                text = Constants.LABEL_READY,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Black,
-                color = Color.White,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-            )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = Constants.LABEL_READY,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+            }
         }
     } else {
         val countdownText = remember(boss.nextSpawnTime, currentTime.value) {
@@ -230,14 +270,25 @@ private fun StatusBadge(
                     color = countdownColor.copy(alpha = if (isDark) 0.4f else 0.5f)
                 )
             ) {
-                Text(
-                    text = countdownText,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = countdownColor,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+                ) {
+                    Icon(
+                        imageVector = if (isSoon) Icons.Default.Warning else Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = countdownColor,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = countdownText,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        color = countdownColor
+                    )
+                }
             }
         }
     }
@@ -358,6 +409,7 @@ fun BossAvatar(
     isUrgent: Boolean = false
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val avatarColor = remember(boss.bossName) {
         val hash = boss.bossName.hashCode()
         val colors = listOf(
@@ -408,10 +460,13 @@ fun BossAvatar(
             }
         }
 
+        val pixelSize = with(density) { size.dp.roundToPx() }
+
         if (imageSource != null) {
             SubcomposeAsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(imageSource)
+                    .size(pixelSize)
                     .crossfade(true)
                     .build(),
                 contentDescription = boss.bossName,
@@ -465,20 +520,60 @@ fun BossTimerShimmerItem() {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)
             .padding(vertical = 6.dp),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) alpha else alpha * 0.5f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.4f else 1f),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(60.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), CircleShape))
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Box(modifier = Modifier.size(120.dp, 20.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(4.dp)))
-                Spacer(modifier = Modifier.height(8.dp))
-                Box(modifier = Modifier.size(80.dp, 12.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(4.dp)))
+        Column {
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                // Avatar Shimmer
+                Box(modifier = Modifier
+                    .size(72.dp)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), CircleShape))
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column {
+                            // Title Shimmer
+                            Box(modifier = Modifier
+                                .size(140.dp, 20.dp)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), RoundedCornerShape(4.dp)))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            // Points Shimmer
+                            Box(modifier = Modifier
+                                .size(60.dp, 12.dp)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), RoundedCornerShape(4.dp)))
+                        }
+                        
+                        // Badge Shimmer
+                        Box(modifier = Modifier
+                            .size(70.dp, 24.dp)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), RoundedCornerShape(12.dp)))
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Time Shimmer
+                    Box(modifier = Modifier
+                        .size(180.dp, 10.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), RoundedCornerShape(4.dp)))
+                }
             }
+            
+            // Progress Bar Shimmer (Sometimes visible)
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp)
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * 0.5f), CircleShape))
         }
     }
 }

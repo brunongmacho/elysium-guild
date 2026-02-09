@@ -11,7 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.airbnb.lottie.compose.*
 import com.elysium.guild.R
 import com.elysium.guild.ui.components.*
 import com.elysium.guild.utils.Constants
@@ -55,22 +56,17 @@ fun BossTimersScreen(
     val context = LocalContext.current
     val pullRefreshState = rememberPullToRefreshState()
     
-    // Tracking scroll for parallax
     val scrollOffset = remember { derivedStateOf { listState.firstVisibleItemScrollOffset.toFloat() + listState.firstVisibleItemIndex * 500f } }
 
-    // Track previous boss IDs and statuses to detect changes
     var previousBossStatuses by remember { mutableStateOf(mapOf<String, String>()) }
 
     LaunchedEffect(uiState.bosses) {
         val currentStatuses = uiState.bosses.associate { it.bossName to it.status }
-        
-        // If we have previous data, check if any boss changed from ready/soon to tracking
         if (previousBossStatuses.isNotEmpty()) {
             val hasChangedToTracking = uiState.bosses.any { boss ->
                 val prevStatus = previousBossStatuses[boss.bossName]
                 (prevStatus == Constants.STATUS_READY || prevStatus == Constants.STATUS_SOON) && boss.status == Constants.STATUS_TRACKING
             }
-            
             if (hasChangedToTracking) {
                 listState.animateScrollToItem(0)
             }
@@ -78,7 +74,6 @@ fun BossTimersScreen(
         previousBossStatuses = currentStatuses
     }
     
-    // Haptic Feedback Logic
     LaunchedEffect(Unit) {
         viewModel.refreshEvents.collectLatest { shouldScrollToTop ->
             if (viewModel.isHapticEnabled()) {
@@ -90,7 +85,6 @@ fun BossTimersScreen(
         }
     }
 
-    // Pull-to-refresh haptic feedback
     LaunchedEffect(uiState.isRefreshing) {
         if (uiState.isRefreshing && viewModel.isHapticEnabled()) {
             triggerHapticFeedback(context, duration = 15)
@@ -108,13 +102,18 @@ fun BossTimersScreen(
                 onRefresh = { viewModel.refreshTimers() },
                 modifier = Modifier.fillMaxSize(),
                 indicator = {
-                    PullToRefreshDefaults.Indicator(
-                        state = pullRefreshState,
-                        isRefreshing = uiState.isRefreshing,
-                        modifier = Modifier.align(Alignment.TopCenter),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 16.dp)
+                    ) {
+                        val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_orb))
+                        LottieAnimation(
+                            composition = composition,
+                            iterations = LottieConstants.IterateForever,
+                            modifier = Modifier.size(60.dp)
+                        )
+                    }
                 }
             ) {
                 Column(
@@ -124,7 +123,11 @@ fun BossTimersScreen(
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Centered Header using Centralized Constants
+                    if (uiState.error != null && uiState.bosses.isNotEmpty()) {
+                        OfflineBanner()
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     Box(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -149,7 +152,6 @@ fun BossTimersScreen(
                             )
                         }
                         
-                        // Keep debug button reachable but out of centered titles
                         IconButton(
                             onClick = { viewModel.testNotification() },
                             modifier = Modifier.align(Alignment.CenterEnd).size(32.dp)
@@ -165,42 +167,22 @@ fun BossTimersScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Search Bar & Filter Toggle
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OutlinedTextField(
-                            value = uiState.searchQuery,
-                            onValueChange = { 
+                        ElysiumGlassSearchBar(
+                            query = uiState.searchQuery,
+                            onQueryChange = { 
                                 viewModel.onSearchQueryChanged(it)
                                 coroutineScope.launch { listState.animateScrollToItem(0) }
                             },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("Search bosses...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 14.sp) },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
-                            trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
-                                {
-                                    IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                        Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
-                                    }
-                                }
-                            } else null,
-                            shape = RoundedCornerShape(16.dp),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                                unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                            ),
-                            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
+                            onClear = { viewModel.onSearchQueryChanged("") },
+                            placeholder = "Search bosses...",
+                            modifier = Modifier.weight(1f)
                         )
 
-                        // Elysium Turn Filter Toggle (Distinguished Guild Icon)
                         IconButton(
                             onClick = { 
                                 viewModel.toggleElysiumTurnFilter()
@@ -217,7 +199,7 @@ fun BossTimersScreen(
                                 )
                         ) {
                             Icon(
-                                imageVector = if (uiState.onlyElysiumTurn) Icons.Default.Shield else Icons.Default.Shield,
+                                imageVector = Icons.Default.Shield,
                                 contentDescription = "Elysium Turn Filter",
                                 tint = if (uiState.onlyElysiumTurn) 
                                     MaterialTheme.colorScheme.primary 
@@ -229,7 +211,6 @@ fun BossTimersScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Filter Chips with Counts (Respecting Elysium Filter)
                     val filters = listOf("All", "Ready", "Soon", "Tracking")
                     val displayBossesForCounts = if (uiState.onlyElysiumTurn) {
                         uiState.bosses.filter { it.rotation?.isOurTurn == true }
@@ -265,7 +246,6 @@ fun BossTimersScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Boss List
                     Box(modifier = Modifier.weight(1f)) {
                         if (uiState.isLoading && uiState.bosses.isEmpty()) {
                             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -290,13 +270,13 @@ fun BossTimersScreen(
                                 contentPadding = PaddingValues(bottom = 24.dp),
                                 modifier = Modifier.fillMaxSize()
                             ) {
-                                items(
+                                itemsIndexed(
                                     items = uiState.filteredBosses,
-                                    key = { it.bossName }
-                                ) { boss ->
+                                    key = { _, boss -> boss.bossName }
+                                ) { index, boss ->
                                     BossTimerCard(
                                         modifier = Modifier.animateItem(
-                                            fadeInSpec = tween(300),
+                                            fadeInSpec = tween(300, delayMillis = (index % 10) * 50),
                                             fadeOutSpec = tween(300),
                                             placementSpec = spring(
                                                 dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -352,11 +332,11 @@ fun EmptyBossState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.SearchOff,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+        val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.empty_search))
+        LottieAnimation(
+            composition = composition,
+            iterations = LottieConstants.IterateForever,
+            modifier = Modifier.size(150.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(

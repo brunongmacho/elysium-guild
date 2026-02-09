@@ -30,6 +30,9 @@ import com.elysium.guild.ui.theme.ElysiumGuildTheme
 import com.elysium.guild.utils.BossNotificationWorker
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
+import com.elysium.guild.viewmodel.BossTimersViewModel
+import com.elysium.guild.viewmodel.EventsViewModel
+import com.elysium.guild.viewmodel.LeaderboardViewModel
 import com.elysium.guild.viewmodel.ProfileViewModel
 import com.elysium.guild.viewmodel.UpdateState
 import com.elysium.guild.widget.BossBubbleService
@@ -45,6 +48,9 @@ class MainActivity : ComponentActivity() {
     lateinit var preferenceManager: PreferenceManager
 
     private val profileViewModel: ProfileViewModel by viewModels()
+    private val bossTimersViewModel: BossTimersViewModel by viewModels()
+    private val eventsViewModel: EventsViewModel by viewModels()
+    private val leaderboardViewModel: LeaderboardViewModel by viewModels()
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -91,6 +97,13 @@ class MainActivity : ComponentActivity() {
         checkExactAlarmPermission()
         BossNotificationWorker.schedule(this)
         profileViewModel.checkForUpdates(silent = true)
+
+        // Item 10: Data Pre-fetching
+        lifecycleScope.launch {
+            bossTimersViewModel.refreshTimers()
+            eventsViewModel.refreshEvents(isInitial = true)
+            leaderboardViewModel.refreshLeaderboard()
+        }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

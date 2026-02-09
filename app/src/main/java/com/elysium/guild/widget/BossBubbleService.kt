@@ -23,6 +23,10 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.StyleSpan
@@ -73,6 +77,7 @@ class BossBubbleService : Service() {
     private var closeParams: WindowManager.LayoutParams? = null
     private var isCloseViewVisible = false
     private var userManuallyHidden = false
+    private var hasHapticTriggeredInZone = false
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var updateJob: Job? = null
@@ -101,15 +106,13 @@ class BossBubbleService : Service() {
         const val ACTION_HIDE = "com.elysium.guild.HIDE_BUBBLE"
         private const val TAG = "BossBubbleService"
 
-        // Readable Colors for Bosses
-        private const val COLOR_BOSS_READY = "#00FF88" // Vibrant Green
-        private const val COLOR_BOSS_SOON = "#FFBB33"  // Vibrant Amber
-        private const val COLOR_BOSS_TRACKING = "#818CF8" // Soft Indigo
+        private const val COLOR_BOSS_READY = "#00FF88"
+        private const val COLOR_BOSS_SOON = "#FFBB33"
+        private const val COLOR_BOSS_TRACKING = "#818CF8"
 
-        // Readable Colors for Events
-        private const val COLOR_EVENT_READY = "#00E5FF" // Bright Cyan
-        private const val COLOR_EVENT_SOON = "#FF7043"  // Vibrant Deep Orange
-        private const val COLOR_EVENT_NORMAL = "#448AFF" // Bright Blue
+        private const val COLOR_EVENT_READY = "#00E5FF"
+        private const val COLOR_EVENT_SOON = "#FF7043"
+        private const val COLOR_EVENT_NORMAL = "#448AFF"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -332,6 +335,7 @@ class BossBubbleService : Service() {
                             val currentCenterY = location[1] + iconHeight / 2f
                             touchOffsetFromCenter.set(event.rawX - currentCenterX, event.rawY - currentCenterY)
                             isMoving = false
+                            hasHapticTriggeredInZone = false
                             return true
                         }
                         MotionEvent.ACTION_MOVE -> {
@@ -351,8 +355,22 @@ class BossBubbleService : Service() {
                             if (isMoving) {
                                 currentParams.x = (freeCenterX - centerOffsetInWindowX).toInt()
                                 currentParams.y = (freeCenterY - centerOffsetInWindowY).toInt()
-                                
                                 updateViewLayoutSafely()
+
+                                val dist = sqrt(
+                                    ((freeCenterX - closeCenter.x) * (freeCenterX - closeCenter.x) + 
+                                     (freeCenterY - closeCenter.y) * (freeCenterY - closeCenter.y)).toDouble()
+                                ).toFloat()
+
+                                val inCloseZone = dist < dpToPx(80)
+                                if (inCloseZone && !hasHapticTriggeredInZone) {
+                                    triggerVibration(70)
+                                    animateCloseIcon(true)
+                                    hasHapticTriggeredInZone = true
+                                } else if (!inCloseZone && hasHapticTriggeredInZone) {
+                                    animateCloseIcon(false)
+                                    hasHapticTriggeredInZone = false
+                                }
                             }
                             return true
                         }
@@ -433,44 +451,88 @@ class BossBubbleService : Service() {
         return Point(screenWidth / 2, screenHeight - dpToPx(130))
     }
 
+    private fun animateCloseIcon(enlarge: Boolean) {
+        val closeIcon = closeView?.findViewById<View>(R.id.close_icon) ?: return
+        val targetScale = if (enlarge) 1.4f else 1.0f
+        closeIcon.animate()
+            .scaleX(targetScale)
+            .scaleY(targetScale)
+            .setDuration(200)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+    }
+
     private fun showCloseView() {
         if (isCloseViewVisible) return
         isCloseViewVisible = true
         
-        val closeIcon = closeView?.findViewById<View>(R.id.close_icon)
-        closeIcon?.animate()?.cancel()
-        closeIcon?.apply {
-            alpha = 1f
-            scaleX = 1f
-            scaleY = 1f
-            rotation = 0f
-            translationY = 0f
-        }
-
-        closeView?.apply {
-            animate()?.cancel()
-            visibility = View.VISIBLE
-            alpha = 1f
-            translationY = 0f
-        }
+        closeView?.visibility = View.VISIBLE
+        closeView?.alpha = 0f
+        closeView?.translationY = dpToPx(20).toFloat()
+        
+        closeView?.animate()
+            ?.alpha(1f)
+            ?.translationY(0f)
+            ?.setDuration(300)
+            ?.setInterpolator(DecelerateInterpolator())
+            ?.start()
     }
 
     private fun hideCloseView() {
         if (!isCloseViewVisible) return
         isCloseViewVisible = false
-        closeView?.apply {
-            animate()?.cancel()
-            visibility = View.GONE
-        }
+        
+        closeView?.animate()
+            ?.alpha(0f)
+            ?.translationY(dpToPx(20).toFloat())
+            ?.setDuration(300)
+            ?.setInterpolator(AccelerateInterpolator())
+            ?.withEndAction {
+                closeView?.visibility = View.GONE
+                animateCloseIcon(false)
+            }
+            ?.start()
     }
 
     private fun performCollapseAndHide() {
-        val closeIcon = closeView?.findViewById<View>(R.id.close_icon) ?: return
-        closeIcon.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        triggerVibration(100)
         
-        userManuallyHidden = true
-        hideFloatingView()
-        hideCloseView()
+        bubbleIcon?.animate()
+            ?.scaleX(0f)
+            ?.scaleY(0f)
+            ?.alpha(0f)
+            ?.setDuration(200)
+            ?.withEndAction {
+                userManuallyHidden = true
+                hideFloatingView()
+                hideCloseView()
+                
+                bubbleIcon?.scaleX = 1f
+                bubbleIcon?.scaleY = 1f
+                bubbleIcon?.alpha = 1f
+                
+                serviceScope.launch {
+                    preferenceManager.setFloatingBubbleEnabled(false)
+                }
+            }
+            ?.start()
+    }
+
+    private fun triggerVibration(duration: Long) {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(duration)
+        }
     }
 
     private fun showFloatingView() {
@@ -764,9 +826,19 @@ class BossBubbleService : Service() {
     private fun startPeriodicUpdates() {
         updateJob = serviceScope.launch {
             while (isActive) {
+                // Item 9: Power Save Mode Check
+                val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+                val isPowerSaveMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    powerManager.isPowerSaveMode
+                } else false
+                
                 updateTimerDisplay()
-                delay(1000L)
-                if (System.currentTimeMillis() % 60000 < 1000) {
+                
+                // Slow down refresh if power save is on
+                val delayTime = if (isPowerSaveMode) 5000L else 1000L
+                delay(delayTime)
+                
+                if (System.currentTimeMillis() % (if (isPowerSaveMode) 120000 else 60000) < delayTime) {
                     fetchData()
                 }
             }
@@ -909,10 +981,8 @@ class BossBubbleService : Service() {
             val bottomPadding = if (isSubtitle) 12 else 4
             this.setPadding(dpToPx(Constants.BUBBLE_ROW_PADDING_HORIZONTAL_DP), dpToPx(topPadding), dpToPx(Constants.BUBBLE_ROW_PADDING_HORIZONTAL_DP), dpToPx(bottomPadding))
             
-            // Readability enhancements
             this.typeface = if (isHeader) Typeface.create("sans-serif-black", Typeface.BOLD) else Typeface.create("sans-serif-medium", Typeface.NORMAL)
             
-            // Text Shadow for readability against busy backgrounds
             setShadowLayer(3f, 2f, 2f, Color.parseColor("#AA000000"))
 
             this.gravity = if (isHeader || isSubtitle) Gravity.CENTER_HORIZONTAL else Gravity.START

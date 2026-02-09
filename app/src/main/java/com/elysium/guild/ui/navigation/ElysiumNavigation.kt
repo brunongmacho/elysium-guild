@@ -34,66 +34,76 @@ fun ElysiumNavigation(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val isFirstRun by preferenceManager.isFirstRun.collectAsState()
 
-    Scaffold(
-        bottomBar = {
-            CustomElysiumNavigationBar {
-                bottomNavItems.forEach { item ->
-                    val isSelected = currentDestination?.hierarchy?.any { it.route == item.route } == true
-                    
-                    NavigationBarItem(
-                        icon = { 
-                            Icon(
-                                item.icon, 
-                                contentDescription = null,
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            ) 
-                        },
-                        label = { 
-                            Text(
-                                item.label,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium
-                            ) 
-                        },
-                        selected = isSelected,
-                        onClick = {
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+    if (isFirstRun) {
+        OnboardingScreen(
+            preferenceManager = preferenceManager,
+            onComplete = {
+                // navController start destination is already correct
+            }
+        )
+    } else {
+        Scaffold(
+            bottomBar = {
+                CustomElysiumNavigationBar {
+                    bottomNavItems.forEach { item ->
+                        val isSelected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    item.icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    item.label,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium
+                                )
+                            },
+                            selected = isSelected,
+                            onClick = {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            indicatorColor = Color.Transparent // Hide default pill
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = Color.Transparent // Hide default pill
+                            )
                         )
-                    )
+                    }
                 }
             }
-        }
-    ) { paddingValues ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.BossTimers.route,
-            modifier = Modifier.padding(paddingValues)
-        ) {
-            composable(Screen.BossTimers.route) {
-                BossTimersScreen(navController, preferenceManager = preferenceManager)
-            }
-            composable(Screen.Events.route) {
-                EventsScreen(navController, preferenceManager = preferenceManager)
-            }
-            composable(Screen.Leaderboard.route) {
-                LeaderboardScreen(navController)
-            }
-            composable(Screen.Settings.route) {
-                ProfileScreen(
-                    navController = navController,
-                    preferenceManager = preferenceManager
-                )
+        ) { paddingValues ->
+            NavHost(
+                navController = navController,
+                startDestination = Screen.BossTimers.route,
+                modifier = Modifier.padding(paddingValues)
+            ) {
+                composable(Screen.BossTimers.route) {
+                    BossTimersScreen(navController, preferenceManager = preferenceManager)
+                }
+                composable(Screen.Events.route) {
+                    EventsScreen(navController, preferenceManager = preferenceManager)
+                }
+                composable(Screen.Leaderboard.route) {
+                    LeaderboardScreen(navController)
+                }
+                composable(Screen.Settings.route) {
+                    ProfileScreen(
+                        navController = navController,
+                        preferenceManager = preferenceManager
+                    )
+                }
             }
         }
     }

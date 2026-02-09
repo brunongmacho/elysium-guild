@@ -11,8 +11,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.elysium.guild.utils.Constants
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -23,6 +27,20 @@ fun DynamicElysiumBackground(
     scrollOffset: Float = 0f,
     content: @Composable () -> Unit
 ) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isLifecycleStarted by remember { mutableStateOf(true) }
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            isLifecycleStarted = true
+            try {
+                awaitCancellation()
+            } finally {
+                isLifecycleStarted = false
+            }
+        }
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "BackgroundTransition")
     val isDarkTheme = isSystemInDarkTheme()
     
@@ -69,6 +87,9 @@ fun DynamicElysiumBackground(
         label = "AngleAnimation"
     )
 
+    // Freeze animation when lifecycle is not started
+    val currentAngle = if (isLifecycleStarted) angle else 0f
+
     Box(modifier = modifier.fillMaxSize()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val canvasWidth = size.width
@@ -89,8 +110,8 @@ fun DynamicElysiumBackground(
                 ),
                 radius = 400.dp.toPx(),
                 center = Offset(
-                    x = canvasWidth * 0.2f + (50 * kotlin.math.cos(Math.toRadians(angle.toDouble()))).toFloat(),
-                    y = canvasHeight * 0.2f + (50 * kotlin.math.sin(Math.toRadians(angle.toDouble()))).toFloat() - parallaxY
+                    x = canvasWidth * 0.2f + (50 * kotlin.math.cos(Math.toRadians(currentAngle.toDouble()))).toFloat(),
+                    y = canvasHeight * 0.2f + (50 * kotlin.math.sin(Math.toRadians(currentAngle.toDouble()))).toFloat() - parallaxY
                 )
             )
 
@@ -102,8 +123,8 @@ fun DynamicElysiumBackground(
                 ),
                 radius = 500.dp.toPx(),
                 center = Offset(
-                    x = canvasWidth * 0.8f + (70 * kotlin.math.sin(Math.toRadians(angle.toDouble()))).toFloat(),
-                    y = canvasHeight * 0.7f + (70 * kotlin.math.cos(Math.toRadians(angle.toDouble()))).toFloat() - (parallaxY * 0.5f)
+                    x = canvasWidth * 0.8f + (70 * kotlin.math.sin(Math.toRadians(currentAngle.toDouble()))).toFloat(),
+                    y = canvasHeight * 0.7f + (70 * kotlin.math.cos(Math.toRadians(currentAngle.toDouble()))).toFloat() - (parallaxY * 0.5f)
                 )
             )
             
@@ -115,8 +136,8 @@ fun DynamicElysiumBackground(
                 ),
                 radius = 350.dp.toPx(),
                 center = Offset(
-                    x = canvasWidth * 0.5f + (100 * kotlin.math.cos(Math.toRadians(angle.toDouble() + 180))).toFloat(),
-                    y = canvasHeight * 0.4f + (100 * kotlin.math.sin(Math.toRadians(angle.toDouble() + 180))).toFloat() - (parallaxY * 0.8f)
+                    x = canvasWidth * 0.5f + (100 * kotlin.math.cos(Math.toRadians(currentAngle.toDouble() + 180))).toFloat(),
+                    y = canvasHeight * 0.4f + (100 * kotlin.math.sin(Math.toRadians(currentAngle.toDouble() + 180))).toFloat() - (parallaxY * 0.8f)
                 )
             )
         }
