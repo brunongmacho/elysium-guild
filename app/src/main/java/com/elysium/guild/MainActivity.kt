@@ -234,7 +234,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        if (Settings.canDrawOverlays(this)) {
+        // Only show bubble if the user has enabled it in settings
+        if (Settings.canDrawOverlays(this) && preferenceManager.floatingBubbleEnabled.value) {
             val intent = Intent(this, BossBubbleService::class.java).apply {
                 action = BossBubbleService.ACTION_SHOW
             }

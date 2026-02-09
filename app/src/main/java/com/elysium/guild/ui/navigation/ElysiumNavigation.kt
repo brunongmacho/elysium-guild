@@ -1,5 +1,9 @@
 package com.elysium.guild.ui.navigation
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -27,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import com.elysium.guild.ui.screens.*
 import com.elysium.guild.utils.PreferenceManager
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ElysiumNavigation(
     preferenceManager: PreferenceManager
@@ -77,32 +82,39 @@ fun ElysiumNavigation(
                                 }
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = Color.Transparent // Hide default pill
+                                indicatorColor = Color.Transparent
                             )
                         )
                     }
                 }
             }
         ) { paddingValues ->
-            NavHost(
-                navController = navController,
-                startDestination = Screen.BossTimers.route,
-                modifier = Modifier.padding(paddingValues)
-            ) {
-                composable(Screen.BossTimers.route) {
-                    BossTimersScreen(navController, preferenceManager = preferenceManager)
-                }
-                composable(Screen.Events.route) {
-                    EventsScreen(navController, preferenceManager = preferenceManager)
-                }
-                composable(Screen.Leaderboard.route) {
-                    LeaderboardScreen(navController)
-                }
-                composable(Screen.Settings.route) {
-                    ProfileScreen(
-                        navController = navController,
-                        preferenceManager = preferenceManager
-                    )
+            // Requirement 5: SharedTransitionLayout
+            SharedTransitionLayout {
+                NavHost(
+                    navController = navController,
+                    startDestination = Screen.BossTimers.route,
+                    modifier = Modifier.padding(paddingValues)
+                ) {
+                    composable(Screen.BossTimers.route) {
+                        BossTimersScreen(
+                            preferenceManager = preferenceManager,
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this@composable
+                        )
+                    }
+                    composable(Screen.Events.route) {
+                        EventsScreen(navController, preferenceManager = preferenceManager)
+                    }
+                    composable(Screen.Leaderboard.route) {
+                        LeaderboardScreen(navController)
+                    }
+                    composable(Screen.Settings.route) {
+                        ProfileScreen(
+                            navController = navController,
+                            preferenceManager = preferenceManager
+                        )
+                    }
                 }
             }
         }
@@ -114,23 +126,20 @@ fun CustomElysiumNavigationBar(
     content: @Composable RowScope.() -> Unit
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-        tonalElevation = 8.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(16.dp)
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        tonalElevation = 12.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column {
-            // Top glowing border line
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(0.5.dp)
+                    .height(1.dp)
                     .background(
-                        brush = Brush.linearGradient(
+                        brush = Brush.horizontalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                                 Color.Transparent
                             )
                         )
@@ -157,7 +166,7 @@ data class BottomNavItem(
 private val bottomNavItems = listOf(
     BottomNavItem(
         route = Screen.BossTimers.route,
-        label = "Bosses",
+        label = "Encounters", // MMORPG feel
         icon = Icons.Filled.Timer
     ),
     BottomNavItem(

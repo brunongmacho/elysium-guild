@@ -24,8 +24,8 @@ android {
         applicationId "com.elysium.guild"
         minSdk 24
         targetSdk 34
-        versionCode 25
-        versionName "1.1.9"
+        versionCode 26
+        versionName "1.2.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

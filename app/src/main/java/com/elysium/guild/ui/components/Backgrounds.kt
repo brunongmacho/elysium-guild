@@ -1,25 +1,33 @@
 package com.elysium.guild.ui.components
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import com.elysium.guild.utils.Constants
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.random.Random
 
 @Composable
 fun DynamicElysiumBackground(
@@ -27,8 +35,45 @@ fun DynamicElysiumBackground(
     scrollOffset: Float = 0f,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var isLifecycleStarted by remember { mutableStateOf(true) }
+
+    // Theme-aligned colors
+    val isDark = isSystemInDarkTheme()
+    val bgColor = MaterialTheme.colorScheme.background
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+
+    // Parallax gyro data with high smoothing
+    var rawGyroOffset by remember { mutableStateOf(Offset.Zero) }
+    val gyroOffset by animateOffsetAsState(
+        targetValue = rawGyroOffset,
+        animationSpec = spring(stiffness = Spring.StiffnessVeryLow, dampingRatio = Spring.DampingRatioLowBouncy),
+        label = "GyroSmoothing"
+    )
+    
+    DisposableEffect(context) {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val gyroSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event?.sensor?.type == Sensor.TYPE_ROTATION_VECTOR) {
+                    val x = event.values[0] 
+                    val y = event.values[1]
+                    rawGyroOffset = Offset(x * 25f, y * 25f)
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+        
+        sensorManager.registerListener(listener, gyroSensor, SensorManager.SENSOR_DELAY_UI)
+        onDispose {
+            sensorManager.unregisterListener(listener)
+        }
+    }
 
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -42,105 +87,113 @@ fun DynamicElysiumBackground(
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "BackgroundTransition")
-    val isDarkTheme = isSystemInDarkTheme()
     
-    // Get current time to determine day/night cycle
-    val hour = remember { 
-        Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).hour 
-    }
-    val isNight = hour >= 20 || hour < 6
+    val aura1Color by animateColorAsState(primaryColor.copy(alpha = if (isDark) 0.15f else 0.1f), tween(3000))
+    val aura2Color by animateColorAsState(secondaryColor.copy(alpha = if (isDark) 0.1f else 0.05f), tween(3000))
 
-    // Theme-aware color palette
-    val targetBlob1 = when {
-        isNight && isDarkTheme -> Color(0xFF4A148C) // Night + Dark: Deep Purple
-        isNight && !isDarkTheme -> Color(0xFFB39DDB) // Night + Light: Soft Lavender
-        !isNight && isDarkTheme -> Color(0xFF0D47A1) // Day + Dark: Rich Blue
-        else -> Color(0xFFBBDEFB) // Day + Light: Sky Blue
-    }
-
-    val targetBlob2 = when {
-        isNight && isDarkTheme -> Color(0xFF1A237E) // Night + Dark: Deep Indigo
-        isNight && !isDarkTheme -> Color(0xFFC5CAE9) // Night + Light: Soft Indigo
-        !isNight && isDarkTheme -> Color(0xFF01579B) // Day + Dark: Deep Cyan
-        else -> Color(0xFFE1F5FE) // Day + Light: Pale Blue
-    }
-
-    val targetBlob3 = when {
-        isNight && isDarkTheme -> Color(0xFF311B92) // Night + Dark: Very Deep Purple
-        isNight && !isDarkTheme -> Color(0xFFD1C4E9) // Night + Light: Pale Lavender
-        !isNight && isDarkTheme -> Color(0xFFE65100) // Day + Dark: Deep Orange
-        else -> Color(0xFFFFF3E0) // Day + Light: Pale Orange
-    }
-
-    // Animate colors for smooth transitions
-    val blob1Color by animateColorAsState(targetBlob1, tween(2000), label = "Blob1Color")
-    val blob2Color by animateColorAsState(targetBlob2, tween(2000), label = "Blob2Color")
-    val blob3Color by animateColorAsState(targetBlob3, tween(2000), label = "Blob3Color")
-
-    val angle by infiniteTransition.animateFloat(
+    val time by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 360f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = LinearEasing),
+            animation = tween(120000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "AngleAnimation"
+        label = "Time"
     )
 
-    // Freeze animation when lifecycle is not started
-    val currentAngle = if (isLifecycleStarted) angle else 0f
+    val particles = remember {
+        List(50) {
+            ParticleData(
+                x = Random.nextFloat(),
+                y = Random.nextFloat(),
+                size = Random.nextFloat() * 1.5f + 0.5f,
+                speed = Random.nextFloat() * 0.03f + 0.01f,
+                alpha = Random.nextFloat() * 0.5f + 0.2f
+            )
+        }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val canvasWidth = size.width
-            val canvasHeight = size.height
-
-            // Parallax factor
-            val parallaxY = scrollOffset * 0.1f
+            val w = size.width
+            val h = size.height
+            val scrollFactor = scrollOffset * 0.06f
             
-            // Adjust alpha based on theme: Light mode needs much subtler blobs to keep text readable
-            val baseAlpha = if (isDarkTheme) 1f else 0.6f
+            // 1. Solid Base from Theme
+            drawRect(color = bgColor)
 
-            // Draw blurred color blobs
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(blob1Color.copy(alpha = 0.15f * baseAlpha), Color.Transparent),
-                    center = Offset(canvasWidth * 0.2f, canvasHeight * 0.2f),
-                    radius = 400.dp.toPx()
-                ),
-                radius = 400.dp.toPx(),
-                center = Offset(
-                    x = canvasWidth * 0.2f + (50 * kotlin.math.cos(Math.toRadians(currentAngle.toDouble()))).toFloat(),
-                    y = canvasHeight * 0.2f + (50 * kotlin.math.sin(Math.toRadians(currentAngle.toDouble()))).toFloat() - parallaxY
+            // 2. Subtle Surface Variant Glow (adds depth to the base)
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(bgColor, surfaceVariant.copy(alpha = 0.3f), bgColor)
                 )
             )
 
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(blob2Color.copy(alpha = 0.12f * baseAlpha), Color.Transparent),
-                    center = Offset(canvasWidth * 0.8f, canvasHeight * 0.7f),
-                    radius = 500.dp.toPx()
-                ),
-                radius = 500.dp.toPx(),
-                center = Offset(
-                    x = canvasWidth * 0.8f + (70 * kotlin.math.sin(Math.toRadians(currentAngle.toDouble()))).toFloat(),
-                    y = canvasHeight * 0.7f + (70 * kotlin.math.cos(Math.toRadians(currentAngle.toDouble()))).toFloat() - (parallaxY * 0.5f)
+            // 3. Mana Particles - Matches Primary Theme Color
+            particles.forEach { p ->
+                val px = p.x * w
+                val py = ((p.y - (time * p.speed)) * h - (scrollFactor * 0.3f)) % h
+                val finalY = if (py < 0) py + h else py
+                
+                drawCircle(
+                    color = primaryColor.copy(alpha = p.alpha * (if (isDark) 0.3f else 0.15f)),
+                    radius = p.size.dp.toPx(),
+                    center = Offset(px, finalY)
                 )
-            )
+            }
+
+            // 4. Layered Auras with Gyro Parallax
+            withTransform({
+                translate(gyroOffset.x, gyroOffset.y)
+            }) {
+                val angle = time * 2 * Math.PI
+                
+                // Aura 1 - Primary Accent
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(aura1Color, Color.Transparent),
+                        radius = w * 1.1f
+                    ),
+                    radius = w * 1.1f,
+                    center = Offset(
+                        x = w * 0.2f + (cos(angle).toFloat() * 100f),
+                        y = h * 0.2f + (sin(angle).toFloat() * 100f) - scrollFactor
+                    ),
+                    blendMode = if (isDark) BlendMode.Screen else BlendMode.Multiply
+                )
+
+                // Aura 2 - Secondary Accent
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(aura2Color, Color.Transparent),
+                        radius = w * 1.3f
+                    ),
+                    radius = w * 1.3f,
+                    center = Offset(
+                        x = w * 0.8f - (cos(angle + 0.5).toFloat() * 80f),
+                        y = h * 0.8f - (sin(angle + 0.5).toFloat() * 80f) - (scrollFactor * 0.5f)
+                    ),
+                    blendMode = if (isDark) BlendMode.Screen else BlendMode.Multiply
+                )
+            }
             
-            drawCircle(
+            // 5. Vignette for Focus
+            drawRect(
                 brush = Brush.radialGradient(
-                    colors = listOf(blob3Color.copy(alpha = 0.08f * baseAlpha), Color.Transparent),
-                    center = Offset(canvasWidth * 0.5f, canvasHeight * 0.4f),
-                    radius = 350.dp.toPx()
-                ),
-                radius = 350.dp.toPx(),
-                center = Offset(
-                    x = canvasWidth * 0.5f + (100 * kotlin.math.cos(Math.toRadians(currentAngle.toDouble() + 180))).toFloat(),
-                    y = canvasHeight * 0.4f + (100 * kotlin.math.sin(Math.toRadians(currentAngle.toDouble() + 180))).toFloat() - (parallaxY * 0.8f)
+                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = if (isDark) 0.3f else 0.05f)),
+                    center = center,
+                    radius = w * 1.5f
                 )
             )
         }
         content()
     }
 }
+
+private data class ParticleData(
+    val x: Float,
+    val y: Float,
+    val size: Float,
+    val speed: Float,
+    val alpha: Float
+)

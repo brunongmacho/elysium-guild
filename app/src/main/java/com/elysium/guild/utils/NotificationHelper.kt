@@ -51,19 +51,26 @@ class NotificationHelper @Inject constructor(
 
             val name = "Boss & Event Alerts"
             val descriptionText = "Notifications for boss spawns and guild events."
+
+            // High importance for heads-up notifications
             val importance = NotificationManager.IMPORTANCE_HIGH
 
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             
+            // Delete old channels if they exist to ensure settings are applied correctly
+            // This is a bit aggressive but ensures the user's latest preference is respected
+            // as Notification Channels are mostly immutable after creation.
+            // However, we are using unique IDs for different sound/vibrate combinations,
+            // so this shouldn't be strictly necessary unless something is cached weirdly.
+
             val channel = NotificationChannel(channelId, name, importance).apply {
                 description = descriptionText
-                // If Vibrate Only is ON, we ALWAYS vibrate.
-                // If Vibrate Only is OFF, we follow the Haptic toggle.
                 enableVibration(vibrateOnly || hapticEnabled)
                 setShowBadge(true)
                 
                 if (vibrateOnly) {
                     setSound(null, null)
+                    vibrationPattern = longArrayOf(0, 500, 200, 500)
                 } else {
                     val resId = try {
                         val id = context.resources.getIdentifier(soundName, "raw", context.packageName)
@@ -93,6 +100,9 @@ class NotificationHelper @Inject constructor(
     fun showBossNotification(bossName: String, minutesRemaining: Int) {
         createNotificationChannel()
         
+        val vibrateOnly = preferenceManager.vibrateOnly.value
+        val hapticEnabled = preferenceManager.hapticEnabled.value
+
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -115,6 +125,29 @@ class NotificationHelper @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+
+        if (vibrateOnly) {
+            builder.setSound(null)
+            builder.setVibrate(longArrayOf(0, 500, 200, 500))
+            builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE)
+        } else {
+            // For older Android versions, manually set the sound on the builder
+            val soundName = preferenceManager.notificationSound.value
+            val resId = try {
+                val id = context.resources.getIdentifier(soundName, "raw", context.packageName)
+                if (id != 0) id else R.raw.terran_launch
+            } catch (e: Exception) {
+                R.raw.terran_launch
+            }
+            val soundUri = Uri.parse("android.resource://${context.packageName}/$resId")
+            builder.setSound(soundUri)
+
+            if (hapticEnabled) {
+                builder.setDefaults(NotificationCompat.DEFAULT_ALL)
+            } else {
+                builder.setDefaults(NotificationCompat.DEFAULT_LIGHTS)
+            }
+        }
 
         try {
             val notificationManager = NotificationManagerCompat.from(context)

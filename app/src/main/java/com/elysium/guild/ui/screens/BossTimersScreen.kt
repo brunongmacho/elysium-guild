@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -18,35 +19,33 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
 import com.airbnb.lottie.compose.*
 import com.elysium.guild.R
 import com.elysium.guild.ui.components.*
+import com.elysium.guild.ui.theme.ElysiumGold
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
 import com.elysium.guild.viewmodel.BossTimersViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun BossTimersScreen(
-    navController: NavController,
     viewModel: BossTimersViewModel = hiltViewModel(),
-    preferenceManager: PreferenceManager
+    preferenceManager: PreferenceManager,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentTime = viewModel.currentTime.collectAsState()
@@ -56,7 +55,10 @@ fun BossTimersScreen(
     val context = LocalContext.current
     val pullRefreshState = rememberPullToRefreshState()
     
-    val scrollOffset = remember { derivedStateOf { listState.firstVisibleItemScrollOffset.toFloat() + listState.firstVisibleItemIndex * 500f } }
+    val scrollOffset = remember { derivedStateOf { 
+        if (listState.layoutInfo.visibleItemsInfo.isEmpty()) 0f 
+        else listState.firstVisibleItemIndex * 500f + listState.firstVisibleItemScrollOffset.toFloat() 
+    } }
 
     var previousBossStatuses by remember { mutableStateOf(mapOf<String, String>()) }
 
@@ -105,13 +107,13 @@ fun BossTimersScreen(
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = 16.dp)
+                            .padding(top = 48.dp)
                     ) {
                         val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_orb))
                         LottieAnimation(
                             composition = composition,
                             iterations = LottieConstants.IterateForever,
-                            modifier = Modifier.size(60.dp)
+                            modifier = Modifier.size(80.dp)
                         )
                     }
                 }
@@ -119,6 +121,7 @@ fun BossTimersScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(horizontal = 16.dp)
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -135,37 +138,28 @@ fun BossTimersScreen(
                         ) {
                             Text(
                                 text = Constants.TITLE_BOSS_TIMERS,
-                                style = MaterialTheme.typography.headlineMedium,
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    letterSpacing = 2.sp,
+                                    shadow = androidx.compose.ui.graphics.Shadow(
+                                        color = ElysiumGold.copy(alpha = 0.5f),
+                                        blurRadius = 15f
+                                    )
+                                ),
                                 fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.primary,
                                 textAlign = TextAlign.Center
                             )
                             Text(
-                                text = Constants.SUBTITLE_BOSS_TIMERS,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                                text = "REAL-TIME RAID TRACKER",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                letterSpacing = 3.sp,
                                 textAlign = TextAlign.Center
-                            )
-                        }
-                        
-                        IconButton(
-                            onClick = { viewModel.testNotification() },
-                            modifier = Modifier.align(Alignment.CenterEnd).size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.BugReport, 
-                                contentDescription = null, 
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
                     
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -179,7 +173,7 @@ fun BossTimersScreen(
                                 coroutineScope.launch { listState.animateScrollToItem(0) }
                             },
                             onClear = { viewModel.onSearchQueryChanged("") },
-                            placeholder = "Search bosses...",
+                            placeholder = "Search encounter...",
                             modifier = Modifier.weight(1f)
                         )
 
@@ -192,7 +186,7 @@ fun BossTimersScreen(
                                 .size(56.dp)
                                 .background(
                                     color = if (uiState.onlyElysiumTurn) 
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) 
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) 
                                     else 
                                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
                                     shape = RoundedCornerShape(16.dp)
@@ -200,7 +194,7 @@ fun BossTimersScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Shield,
-                                contentDescription = "Elysium Turn Filter",
+                                contentDescription = "Guild Filter",
                                 tint = if (uiState.onlyElysiumTurn) 
                                     MaterialTheme.colorScheme.primary 
                                 else 
@@ -267,7 +261,7 @@ fun BossTimersScreen(
                             LazyColumn(
                                 state = listState,
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding = PaddingValues(bottom = 24.dp),
+                                contentPadding = PaddingValues(bottom = 100.dp),
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 itemsIndexed(
@@ -276,17 +270,19 @@ fun BossTimersScreen(
                                 ) { index, boss ->
                                     BossTimerCard(
                                         modifier = Modifier.animateItem(
-                                            fadeInSpec = tween(300, delayMillis = (index % 10) * 50),
-                                            fadeOutSpec = tween(300),
+                                            fadeInSpec = tween(300, delayMillis = (index % 8) * 40),
+                                            fadeOutSpec = tween(200),
                                             placementSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                dampingRatio = Spring.DampingRatioLowBouncy,
                                                 stiffness = Spring.StiffnessLow
                                             )
                                         ),
                                         boss = boss,
                                         currentTime = currentTime,
                                         useLocalTimezone = useLocalTimezone,
-                                        searchQuery = uiState.searchQuery
+                                        searchQuery = uiState.searchQuery,
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope
                                     )
                                 }
                             }
@@ -341,25 +337,19 @@ fun EmptyBossState(
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = when {
-                query.isNotEmpty() -> "No results for \"$query\""
-                isElysiumFilterActive -> "No bosses for Elysium's turn"
-                else -> "No bosses tracked"
+                query.isNotEmpty() -> "No encounter matches \"$query\""
+                isElysiumFilterActive -> "No guild bosses active"
+                else -> "The archives are empty"
             },
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            textAlign = TextAlign.Center
-        )
-        Text(
-            text = "Try adjusting your filters or search query",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
             textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         TextButton(onClick = onClearFilters) {
-            Text("Clear all filters", fontWeight = FontWeight.Bold)
+            Text("RESET FILTERS", fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
         }
     }
 }

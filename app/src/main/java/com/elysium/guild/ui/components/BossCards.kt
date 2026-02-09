@@ -4,6 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -41,39 +44,60 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import coil.size.Size
 import com.elysium.guild.models.*
+import com.elysium.guild.ui.theme.ElysiumGold
+import com.elysium.guild.ui.theme.ElysiumPurple
+import com.elysium.guild.ui.theme.ElysiumPurpleLight
+import com.elysium.guild.ui.theme.StatusReadyGlow
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.UIUtils
 import kotlinx.datetime.Instant
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun BossTimerCard(
     boss: BossTimer,
     currentTime: State<Instant>,
     useLocalTimezone: Boolean = false,
     modifier: Modifier = Modifier,
-    searchQuery: String = ""
+    searchQuery: String = "",
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
     
-    val targetColor = remember(boss.status, boss.timeRemaining, isDark) {
-        UIUtils.getStatusColor(boss.status, boss.timeRemaining, isDark)
+    val isElysiumTurn = boss.rotation?.isOurTurn == true
+    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || (boss.timeRemaining ?: 1L) <= 0L
+
+    // FIX: Distinct color for Elysium Turn (Purple) to differentiate from Soon (Yellow)
+    val baseStatusColor = remember(boss.status, boss.timeRemaining, isElysiumTurn, isDark) {
+        when {
+            isReady ->
+                if (isDark) StatusReadyGlow else Color(0xFF00796B) // Active: Teal/Green
+            isElysiumTurn ->
+                if (isDark) ElysiumPurpleLight else ElysiumPurple // Guild Turn: Purple
+            boss.status == Constants.STATUS_SOON || (boss.timeRemaining != null && boss.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS) ->
+                if (isDark) Color(0xFFFFCC00) else Color(0xFFF57C00) // Soon: Yellow/Orange
+            else -> 
+                if (isDark) Color(0xFF888888) else Color(0xFF5D4037) // Tracking: Muted
+        }
     }
     
     val animatedColor by animateColorAsState(
-        targetValue = targetColor,
+        targetValue = baseStatusColor,
         animationSpec = tween(durationMillis = 500),
         label = "CardColorAnimation"
     )
 
-    val isElysiumTurn = boss.rotation?.isOurTurn == true
-    val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || (boss.timeRemaining ?: 1L) <= 0L
-
     ElysiumGlassCard(
         modifier = modifier.padding(vertical = 6.dp),
         statusColor = animatedColor,
-        glowColor = if (isElysiumTurn) MaterialTheme.colorScheme.primary else Color.Transparent,
-        onClick = { /* Could navigate to detail if needed */ }
+        glowColor = when {
+            isReady -> animatedColor
+            isElysiumTurn -> if (isDark) ElysiumPurpleLight else ElysiumPurple
+            else -> Color.Transparent
+        },
+        onClick = { /* Detail navigation can go here */ }
     ) {
         Column(
             modifier = Modifier
@@ -89,7 +113,17 @@ fun BossTimerCard(
                 modifier = Modifier.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BossAvatar(boss = boss, statusColor = animatedColor, isUrgent = isReady)
+                with(sharedTransitionScope) {
+                    BossAvatar(
+                        boss = boss, 
+                        statusColor = animatedColor, 
+                        isUrgent = isReady,
+                        modifier = Modifier.sharedElement(
+                            rememberSharedContentState(key = "boss-image-${boss.bossName}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(16.dp))
 
@@ -103,19 +137,20 @@ fun BossTimerCard(
                             Text(
                                 text = highlightSearchText(boss.bossName, searchQuery, MaterialTheme.colorScheme.primary),
                                 style = MaterialTheme.typography.titleMedium.copy(
-                                    shadow = if (searchQuery.isNotEmpty()) Shadow(
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                        blurRadius = 8f
-                                    ) else null
+                                    shadow = Shadow(
+                                        color = if (isDark) Color.Black.copy(alpha = 0.5f) else Color.Transparent,
+                                        blurRadius = 4f
+                                    )
                                 ),
                                 fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = if (isReady || isElysiumTurn) animatedColor else MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "${boss.bossPoints} Points",
+                                text = "${boss.bossPoints} AP",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
+                                color = if (isElysiumTurn) animatedColor else MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
                             )
                         }
 
@@ -127,7 +162,7 @@ fun BossTimerCard(
                                 Icon(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = "Share",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -160,10 +195,9 @@ fun highlightSearchText(text: String, query: String, highlightColor: Color): Ann
     val queries = query.split(" ").filter { it.isNotEmpty() }
     
     return buildAnnotatedString {
-        var currentText = text
-        var lastIndex = 0
-        
+        var currentIndex = 0
         val matches = mutableListOf<IntRange>()
+        
         queries.forEach { q ->
             var start = 0
             while (true) {
@@ -174,7 +208,6 @@ fun highlightSearchText(text: String, query: String, highlightColor: Color): Ann
             }
         }
         
-        // Sort and merge overlapping ranges
         val sortedMatches = matches.sortedBy { it.first }
         val mergedMatches = mutableListOf<IntRange>()
         if (sortedMatches.isNotEmpty()) {
@@ -191,19 +224,19 @@ fun highlightSearchText(text: String, query: String, highlightColor: Color): Ann
             mergedMatches.add(currentRange)
         }
         
-        var currentIndex = 0
+        var lastAppendedIndex = 0
         mergedMatches.forEach { range ->
-            append(text.substring(currentIndex, range.first))
+            append(text.substring(lastAppendedIndex, range.first))
             withStyle(style = SpanStyle(
                 color = highlightColor, 
                 fontWeight = FontWeight.Black,
-                background = highlightColor.copy(alpha = 0.1f)
+                background = highlightColor.copy(alpha = 0.15f)
             )) {
                 append(text.substring(range.first, range.last))
             }
-            currentIndex = range.last
+            lastAppendedIndex = range.last
         }
-        append(text.substring(currentIndex))
+        append(text.substring(lastAppendedIndex))
     }
 }
 
@@ -215,24 +248,25 @@ private fun StatusBadge(
 ) {
     val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || (boss.timeRemaining ?: 1L) <= 0L
     val isSoon = !isReady && (boss.status == Constants.STATUS_SOON || (boss.timeRemaining != null && boss.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
+    val isElysiumTurn = boss.rotation?.isOurTurn == true
     val isDark = isSystemInDarkTheme()
 
     if (isReady) {
         val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
         val badgeScale by infiniteTransition.animateFloat(
             initialValue = 1f,
-            targetValue = 1.05f,
+            targetValue = 1.08f,
             animationSpec = infiniteRepeatable(
-                animation = tween(1000, easing = FastOutSlowInEasing),
+                animation = tween(800, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse
             ),
             label = "BadgeScale"
         )
 
         Surface(
-            color = Constants.COLOR_READY.copy(alpha = if (isDark) 0.8f else 1f),
+            color = statusColor,
             shape = RoundedCornerShape(12.dp),
-            shadowElevation = 4.dp,
+            shadowElevation = if (isDark) 8.dp else 2.dp,
             modifier = Modifier.scale(badgeScale)
         ) {
             Row(
@@ -240,17 +274,17 @@ private fun StatusBadge(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.CheckCircle,
+                    imageVector = Icons.Default.FlashOn,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (isDark) Color.Black else Color.White,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = Constants.LABEL_READY,
+                    text = "ACTIVE",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Black,
-                    color = Color.White
+                    color = if (isDark) Color.Black else Color.White
                 )
             }
         }
@@ -259,15 +293,13 @@ private fun StatusBadge(
             boss.nextSpawnTime?.let { calculateBossCountdown(it, currentTime.value) } ?: ""
         }
         
-        val countdownColor = UIUtils.getCountdownColor(boss.timeRemaining, isDark)
-
-        if (countdownText.isNotEmpty()) {
+        if (countdownText.isNotEmpty() || isElysiumTurn) {
             Surface(
-                color = countdownColor.copy(alpha = if (isDark) 0.2f else 0.1f),
+                color = statusColor.copy(alpha = if (isDark) 0.15f else 0.1f),
                 shape = RoundedCornerShape(12.dp),
                 border = androidx.compose.foundation.BorderStroke(
                     width = 1.dp, 
-                    color = countdownColor.copy(alpha = if (isDark) 0.4f else 0.5f)
+                    color = statusColor.copy(alpha = if (isDark) 0.5f else 0.8f)
                 )
             ) {
                 Row(
@@ -275,18 +307,22 @@ private fun StatusBadge(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Icon(
-                        imageVector = if (isSoon) Icons.Default.Warning else Icons.Default.Schedule,
+                        imageVector = when {
+                            isElysiumTurn -> Icons.Default.Shield
+                            isSoon -> Icons.Default.Timer
+                            else -> Icons.Default.Schedule
+                        },
                         contentDescription = null,
-                        tint = countdownColor,
+                        tint = statusColor,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = countdownText,
+                        text = if (isElysiumTurn && countdownText.isEmpty()) "GUILD TURN" else countdownText,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
-                        color = countdownColor
+                        color = statusColor
                     )
                 }
             }
@@ -304,14 +340,14 @@ private fun RotationStatus(rotation: RotationInfo) {
             .fillMaxWidth()
             .background(
                 color = if (isElysium) 
-                    MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.15f else 0.1f)
+                    MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.1f else 0.15f)
                 else 
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.03f), 
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), 
                 shape = RoundedCornerShape(8.dp)
             )
             .border(
-                width = if (isElysium) 1.dp else 0.dp,
-                color = if (isElysium) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent,
+                width = 1.dp,
+                color = if (isElysium) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent,
                 shape = RoundedCornerShape(8.dp)
             )
             .padding(8.dp)
@@ -320,7 +356,7 @@ private fun RotationStatus(rotation: RotationInfo) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
+                        .size(8.dp)
                         .background(
                             if (isElysium) MaterialTheme.colorScheme.primary else Color.Gray,
                             CircleShape
@@ -328,17 +364,11 @@ private fun RotationStatus(rotation: RotationInfo) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isElysium) "Current: $current (OUR TURN)" else "Current: $current",
+                    text = if (isElysium) "Current: $current (GUILD TURN)" else "Current: $current",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isElysium)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (isElysium)
-                        FontWeight.ExtraBold
-                    else
-                        FontWeight.Medium,
-                    letterSpacing = if (isElysium) 0.5.sp else 0.sp
+                    color = if (isElysium) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isElysium) FontWeight.ExtraBold else FontWeight.Medium,
+                    letterSpacing = 0.5.sp
                 )
             }
         }
@@ -349,13 +379,13 @@ private fun RotationStatus(rotation: RotationInfo) {
 private fun SpawnTimeText(boss: BossTimer, useLocalTimezone: Boolean) {
     boss.nextSpawnTime?.let { spawnTime ->
         val formattedTime = remember(spawnTime, boss.status, boss.type, useLocalTimezone) {
-            val prefix = if (boss.type == "schedule") "Scheduled:" else "Spawns:"
+            val prefix = if (boss.type == "schedule") "Scheduled:" else "Spawn Window:"
             "$prefix ${UIUtils.formatEventTime(spawnTime, useLocalTimezone)}"
         }
         Text(
             text = formattedTime,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
             lineHeight = 14.sp,
             modifier = Modifier.padding(top = 4.dp)
         )
@@ -371,7 +401,6 @@ private fun DynamicProgressBar(
     val threshold = Constants.SPAWNING_SOON_THRESHOLD_MS
     val timeRemaining = boss.timeRemaining ?: return
     val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || timeRemaining <= 0L
-    val isDark = isSystemInDarkTheme()
     
     if (!isReady && timeRemaining <= threshold) {
         val progress = remember(timeRemaining, currentTime.value) {
@@ -383,21 +412,32 @@ private fun DynamicProgressBar(
 
         val animatedProgress by animateFloatAsState(
             targetValue = progress,
-            animationSpec = tween(durationMillis = 1000),
+            animationSpec = tween(durationMillis = 1000, easing = LinearOutSlowInEasing),
             label = "ProgressBarAnimation"
         )
 
-        LinearProgressIndicator(
-            progress = { animatedProgress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
-                .clip(CircleShape),
-            color = animatedColor,
-            trackColor = animatedColor.copy(alpha = if (isDark) 0.1f else 0.05f)
-        )
+        // Requirement 17: Progress Gauge with Glow
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .background(Color.Black.copy(alpha = 0.1f), CircleShape)
+                    .border(1.dp, animatedColor.copy(alpha = 0.3f), CircleShape)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(animatedProgress)
+                        .fillMaxHeight()
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(animatedColor.copy(alpha = 0.7f), animatedColor)
+                            ),
+                            CircleShape
+                        )
+                )
+            }
+        }
     }
 }
 
@@ -405,26 +445,19 @@ private fun DynamicProgressBar(
 fun BossAvatar(
     boss: BossTimer,
     statusColor: Color,
-    size: Int = 60,
+    modifier: Modifier = Modifier,
+    size: Int = 64,
     isUrgent: Boolean = false
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val avatarColor = remember(boss.bossName) {
-        val hash = boss.bossName.hashCode()
-        val colors = listOf(
-            Color(0xFF6366F1), Color(0xFFEC4899), Color(0xFFF59E0B),
-            Color(0xFF10B981), Color(0xFF8B5CF6), Color(0xFF06B6D4)
-        )
-        colors[Math.abs(hash) % colors.size]
-    }
-
+    
     val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.1f,
+        targetValue = 1.15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
+            animation = tween(1200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "PulseScale"
@@ -432,15 +465,20 @@ fun BossAvatar(
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size((size + 12).dp)
+        modifier = modifier
+            .size((size + 16).dp)
             .then(if (isUrgent) Modifier.scale(pulseScale) else Modifier)
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             shape = CircleShape,
-            color = statusColor.copy(alpha = 0.1f),
-            border = androidx.compose.foundation.BorderStroke(2.dp, statusColor.copy(alpha = 0.5f))
+            color = Color.Transparent,
+            border = androidx.compose.foundation.BorderStroke(
+                width = 2.dp,
+                brush = Brush.sweepGradient(
+                    colors = listOf(statusColor, statusColor.copy(alpha = 0.2f), statusColor)
+                )
+            )
         ) {}
 
         val imageSource = remember(boss.bossName, boss.imageUrl) {
@@ -477,10 +515,10 @@ fun BossAvatar(
                 loading = {
                     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)))
                 },
-                error = { BossInitialAvatar(boss.bossName, avatarColor, size) }
+                error = { BossInitialAvatar(boss.bossName, statusColor, size) }
             )
         } else {
-            BossInitialAvatar(boss.bossName, avatarColor, size)
+            BossInitialAvatar(boss.bossName, statusColor, size)
         }
     }
 }
@@ -508,10 +546,10 @@ fun BossTimerShimmerItem() {
     val isDark = isSystemInDarkTheme()
     val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
     val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.5f,
+        initialValue = 0.15f,
+        targetValue = 0.4f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
+            animation = tween(1200, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "alpha"
@@ -522,12 +560,11 @@ fun BossTimerShimmerItem() {
             .fillMaxWidth()
             .padding(vertical = 6.dp),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.4f else 1f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
     ) {
         Column {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                // Avatar Shimmer
                 Box(modifier = Modifier
                     .size(72.dp)
                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), CircleShape))
@@ -541,39 +578,24 @@ fun BossTimerShimmerItem() {
                         verticalAlignment = Alignment.Top
                     ) {
                         Column {
-                            // Title Shimmer
                             Box(modifier = Modifier
                                 .size(140.dp, 20.dp)
                                 .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), RoundedCornerShape(4.dp)))
                             Spacer(modifier = Modifier.height(8.dp))
-                            // Points Shimmer
                             Box(modifier = Modifier
                                 .size(60.dp, 12.dp)
                                 .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), RoundedCornerShape(4.dp)))
                         }
-                        
-                        // Badge Shimmer
                         Box(modifier = Modifier
                             .size(70.dp, 24.dp)
                             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), RoundedCornerShape(12.dp)))
                     }
-                    
                     Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Time Shimmer
                     Box(modifier = Modifier
                         .size(180.dp, 10.dp)
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha), RoundedCornerShape(4.dp)))
                 }
             }
-            
-            // Progress Bar Shimmer (Sometimes visible)
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * 0.5f), CircleShape))
         }
     }
 }
@@ -583,9 +605,9 @@ private fun shareBossStatus(context: Context, boss: BossTimer, now: Instant) {
     val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE
 
     val message = if (isReady) {
-        "[ELYSIUM] BOSS READY: ${boss.bossName.uppercase()} is spawning now! Get to the relay! ⚔️"
+        "⚔️ [ELYSIUM] BOSS ACTIVE: ${boss.bossName.uppercase()}! To arms! ⚔️"
     } else {
-        "[ELYSIUM] BOSS REMINDER: ${boss.bossName.uppercase()} spawning in $countdown! Prepare for the kill! ⚔️"
+        "⏳ [ELYSIUM] BOSS INBOUND: ${boss.bossName.uppercase()} in $countdown! ⏳"
     }
     
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
