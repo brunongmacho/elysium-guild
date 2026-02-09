@@ -48,13 +48,12 @@ fun EventCard(
     event: GuildEvent,
     currentTime: State<Instant>,
     useLocalTimezone: Boolean = false,
-    onReminderClick: (GuildEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
     val now = currentTime.value
-    val start = Instant.parse(event.startTime)
-    val end = event.endTime?.let { Instant.parse(it) }
+    val start = try { Instant.parse(event.startTime) } catch (e: Exception) { now }
+    val end = event.endTime?.let { try { Instant.parse(it) } catch(e: Exception) { null } }
     
     // Live detection
     val isLive = end?.let { now >= start && now < it } ?: (now >= start && (now - start).inWholeMinutes < 60)
@@ -83,7 +82,7 @@ fun EventCard(
     ElysiumGlassCard(
         modifier = modifier.then(if (isLive) Modifier.scale(pulseScale) else Modifier),
         statusColor = animatedColor,
-        glowColor = if (isLive) Constants.COLOR_READY else Color.Transparent,
+        glowColor = if (isLive) animatedColor else Color.Transparent,
         onClick = { /* Detail action */ }
     ) {
         Column(
@@ -120,7 +119,7 @@ fun EventCard(
                                 modifier = Modifier.size(48.dp),
                                 shape = CircleShape,
                                 color = Color.Transparent,
-                                border = BorderStroke(1.dp, Constants.COLOR_READY.copy(alpha = 0.3f))
+                                border = BorderStroke(1.dp, animatedColor.copy(alpha = 0.3f))
                             ) {}
                         }
                     }
@@ -136,7 +135,7 @@ fun EventCard(
                             
                             if (isLive) {
                                 Spacer(modifier = Modifier.width(8.dp))
-                                LiveBadge()
+                                LiveBadge(animatedColor)
                             }
                         }
                         
@@ -164,17 +163,13 @@ fun EventCard(
             }
 
             if (countdown.isNotEmpty()) {
-                val countdownColor = if (isLive) Constants.COLOR_READY 
-                                   else if ((start - now).inWholeMinutes < 15) Constants.COLOR_SOON
-                                   else if (isDark) Color.White.copy(alpha = 0.7f) else Color.Gray
-
                 Surface(
-                    color = countdownColor.copy(alpha = if (isDark) 0.2f else 0.1f),
+                    color = animatedColor.copy(alpha = if (isDark) 0.2f else 0.1f),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.align(Alignment.End),
                     border = BorderStroke(
                         width = 1.dp, 
-                        color = countdownColor.copy(alpha = if (isDark) 0.3f else 0.4f)
+                        color = animatedColor.copy(alpha = if (isDark) 0.3f else 0.4f)
                     )
                 ) {
                     Row(
@@ -184,7 +179,7 @@ fun EventCard(
                         Icon(
                             imageVector = if (isLive) Icons.Default.Stream else Icons.Default.Schedule,
                             contentDescription = null,
-                            tint = countdownColor,
+                            tint = animatedColor,
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -193,7 +188,7 @@ fun EventCard(
                             style = MaterialTheme.typography.labelSmall.merge(TabularTextStyle),
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            color = countdownColor
+                            color = animatedColor
                         )
                     }
                 }
@@ -203,7 +198,7 @@ fun EventCard(
 }
 
 @Composable
-fun LiveBadge() {
+fun LiveBadge(color: Color) {
     val infiniteTransition = rememberInfiniteTransition(label = "LiveBadge")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.4f,
@@ -216,7 +211,7 @@ fun LiveBadge() {
     )
 
     Surface(
-        color = Constants.COLOR_READY.copy(alpha = alpha),
+        color = color.copy(alpha = alpha),
         shape = RoundedCornerShape(4.dp)
     ) {
         Text(

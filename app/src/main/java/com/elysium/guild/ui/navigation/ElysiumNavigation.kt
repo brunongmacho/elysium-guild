@@ -89,7 +89,6 @@ fun ElysiumNavigation(
                 }
             }
         ) { paddingValues ->
-            // Requirement 5: SharedTransitionLayout
             SharedTransitionLayout {
                 NavHost(
                     navController = navController,
@@ -104,7 +103,12 @@ fun ElysiumNavigation(
                         )
                     }
                     composable(Screen.Events.route) {
-                        EventsScreen(navController, preferenceManager = preferenceManager)
+                        EventsScreen(
+                            navController = navController,
+                            preferenceManager = preferenceManager,
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this@composable
+                        )
                     }
                     composable(Screen.Leaderboard.route) {
                         LeaderboardScreen(navController)
@@ -166,7 +170,7 @@ data class BottomNavItem(
 private val bottomNavItems = listOf(
     BottomNavItem(
         route = Screen.BossTimers.route,
-        label = "Encounters", // MMORPG feel
+        label = "Encounters",
         icon = Icons.Filled.Timer
     ),
     BottomNavItem(
