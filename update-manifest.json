@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 27,
-  "latestVersionName": "1.2.1",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.2.1/app-debug.apk",
+  "latestVersionCode": 28,
+  "latestVersionName": "1.2.2",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.2.2/app-debug.apk",
   "releaseNotes": "- UI improvements and bug fixes.",
   "isForceUpdate": false
 }

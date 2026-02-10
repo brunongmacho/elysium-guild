@@ -146,7 +146,7 @@ fun BossTimerCard(
                                 color = if (isReady || isElysiumTurn) animatedColor else MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "${boss.bossPoints} AP",
+                                text = "${boss.bossPoints} BP",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (isElysiumTurn) animatedColor else MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,

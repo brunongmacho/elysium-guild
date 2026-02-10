@@ -86,7 +86,6 @@ fun EventsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(horizontal = 16.dp)
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))

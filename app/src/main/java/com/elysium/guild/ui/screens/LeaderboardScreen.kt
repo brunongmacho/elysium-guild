@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.elysium.guild.ui.components.*
+import com.elysium.guild.ui.theme.ElysiumGold
 import com.elysium.guild.viewmodel.LeaderboardViewModel
 import com.elysium.guild.models.LeaderboardType
 import com.elysium.guild.viewmodel.LeaderboardPeriod
@@ -73,11 +75,18 @@ fun LeaderboardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val baseStyle = if (screenWidth < 360.dp) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium
                         Text(
                             text = Constants.TITLE_LEADERBOARD,
-                            style = if (screenWidth < 360.dp) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
+                            style = baseStyle.copy(
+                                letterSpacing = 2.sp,
+                                shadow = Shadow(
+                                    color = ElysiumGold.copy(alpha = 0.5f),
+                                    blurRadius = 15f
+                                )
+                            ),
                             fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center

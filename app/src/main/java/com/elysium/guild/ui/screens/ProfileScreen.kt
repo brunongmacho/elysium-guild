@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -49,6 +50,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.elysium.guild.ui.components.*
+import com.elysium.guild.ui.theme.ElysiumGold
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
 import com.elysium.guild.viewmodel.ProfileViewModel
@@ -185,14 +187,20 @@ fun ProfileScreen(
                         .verticalScroll(scrollState),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = Constants.TITLE_SETTINGS,
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                letterSpacing = 2.sp,
+                                shadow = Shadow(
+                                    color = ElysiumGold.copy(alpha = 0.5f),
+                                    blurRadius = 15f
+                                )
+                            ),
                             fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = MaterialTheme.colorScheme.primary,
                             textAlign = TextAlign.Center
                         )
                         Text(
