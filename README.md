@@ -1,77 +1,102 @@
-# Elysium Guild Mobile App
+# ⚔️ Elysium Guild Mobile App
 
-A modern, high-performance Android application built with Jetpack Compose, designed for elite guild management. This app integrates directly with the Elysium Dashboard API to provide real-time tracking of world bosses, guild events, and member performance.
+[![Version](https://img.shields.io/badge/Version-1.2.4-gold.svg?style=for-the-badge)](https://github.com/brunongmacho/elysium-guild/releases)
+[![Platform](https://img.shields.io/badge/Platform-Android_8.0+-000000.svg?style=for-the-badge&logo=android)](https://developer.android.com)
+[![Engine](https://img.shields.io/badge/UI-Jetpack_Compose-4285F4.svg?style=for-the-badge&logo=jetpackcompose)](https://developer.android.com/compose)
 
-## 🚀 Version 1.1.3 (Stable)
-*   **Global Stability Hardening**: Re-engineered core components to ensure 100% stability across all device manufacturers (Samsung, Xiaomi, Lenovo, Pixel). Fixed critical crashes related to rapid orientation changes and background process death.
-*   **Android 14+ Compliance**: Fully compliant with modern Android requirements, including Foreground Service (FGS) type properties and exact alarm security handling.
-*   **Premium Floating Bubble**: A circular, high-contrast boss timer bubble that floats over other apps. Optimized with a solid black background and zoomed icon for visibility on all screen types.
-*   **Intelligent Permission Management**: Centralized permission tracking in the Settings screen. Handles Battery Optimization, Overlay, and Exact Alarm requests with direct deep-links to system settings.
-*   **Resilient Data Layer**: Updated Room database with auto-migration safety and repositories with silent network failure handling to ensure a stutter-free experience.
+A premium, high-performance Android utility built for the **Elysium Guild**. This application serves as a real-time tactical hub, integrating world boss tracking, guild event scheduling, and competitive performance metrics into a single, cohesive experience.
 
-## 🎯 Core Features
+## ✨ Premium Visuals: Glassmorphism 2.0
+The app features a custom-built **Glassmorphism Design System**, utilizing:
+*   **Legendary Orb Effects**: Real-time path-drawing animations that trace the borders of high-tier cards.
+*   **Dynamic Backgrounds**: Parallax-shifted nebulas and blurred blobs that react to user scrolling.
+*   **Haptic Interface**: Tactile feedback for every critical action, from refreshing timers to permission toggles.
 
-### 1. Boss Timers (Real-Time)
-*   **Live Countdown**: Track precise spawn times for all world bosses.
-*   **Floating Overlay**: Keep timers visible while playing with the premium circular bubble.
-*   **Smart Filtering**: Categorize bosses by `Ready`, `Soon` (within 30m), and `Tracking`.
-*   **Haptic Alerts**: Tactile feedback on status changes and pull-to-refresh actions.
+---
 
-### 2. Guild Events
-*   **Dynamic Schedule**: Syncs with the dashboard to show daily/weekly guild activities.
-*   **Synced Visuals**: Event cards share the same premium glassy style and stage logic as Boss cards.
-*   **Precise Reminders**: Local exact alarms notify you exactly when the action starts, even on Android 14.
+## 🚀 Core Features
 
-### 3. Leaderboards & Profiles
-*   **Competitive Rankings**: Track top performers in `Attendance` and `Points`.
-*   **Adaptive Podium**: High-contrast podium display that works perfectly in all lighting conditions.
-*   **Detailed Statistics**: View personal participation history and point accrual.
+### 1. Boss Timers & Tactical HUD
+*   **Real-Time Tracking**: Precise countdowns for all world bosses with 1-second resolution.
+*   **Rotation Logic**: Intelligent filtering for "Our Turn" vs. "Enemy Turn" rotations.
+*   **Floating Bubble Overlay**: A persistent, circular HUD that floats over other apps (including the game). 
+    *   *Features*: Drag-to-close zone, adaptive orientation (Landscape/Portrait), and auto-hiding during active app use.
+*   **Smart Statuses**: Automatic categorization into `READY`, `SOON` (within 30m), and `TRACKING`.
 
-### 4. Advanced Settings
-*   **Permission Center**: One-tap status checks and fixes for notifications, battery, and overlays.
-*   **Theme Engine**: Support for `Light`, `Dark`, and `System` modes with instant UI switching.
-*   **Sound Selection**: Choose your preferred alert sound with live previews and robust resource fallbacks.
+### 2. Guild Events & Schedule
+*   **Automated Sync**: Fetches the latest guild activities directly from the Elysium API.
+*   **Alarm Integration**: One-tap scheduling of Exact Alarms (Android 14 compliant) to notify you 10 minutes before an event starts.
+*   **Glassy Visuals**: Shared component architecture ensures events look as premium as boss cards.
 
-## 🛠 Tech Stack
-*   **Language**: Kotlin 1.9+
-*   **UI**: Jetpack Compose (Material 3)
-*   **Architecture**: MVVM with Clean Architecture principles
-*   **DI**: Hilt (Dagger)
-*   **Database**: Room (Local caching with destructive migration safety)
-*   **Networking**: Retrofit 2 + OkHttp 4
-*   **Background**: WorkManager + Foreground Services
-*   **Automation**: GitHub Actions (CI/CD)
+### 3. Advanced Leaderboards
+*   **Multi-Metric Tracking**: Switch between `Attendance` and `Points` leaderboards.
+*   **Dynamic Podium**: Visual highlight for Top 3 performers with custom gold, silver, and bronze gradients.
+*   **Historical Data**: Filter attendance by Weekly, Monthly, or All-Time periods.
 
-## 🏗 Project Architecture
-```
+### 4. System Health & Settings
+*   **Permission Center**: Centralized management for Notifications, Overlay permissions, Exact Alarms, and Battery Optimization.
+*   **Theme Engine**: Instant switching between Light, Dark, and System modes.
+*   **Notification Customization**: Select from a library of custom alert sounds (e.g., *Terran Launch*).
+
+---
+
+## 🛠 Tech Stack & Architecture
+
+### Modern Android Development
+*   **Language**: Kotlin 1.9+ (Coroutines & Flow for reactive data)
+*   **UI Framework**: Jetpack Compose (Material 3)
+*   **Architecture**: MVVM with Repository Pattern and Clean Architecture
+*   **Dependency Injection**: Hilt (Dagger)
+*   **Local Database**: Room (with automated migration paths)
+*   **Network Layer**: Retrofit 2 + OkHttp 4 + GSON
+*   **Async Work**: WorkManager (for background notification scheduling)
+*   **Image Loading**: Coil (with custom 50MB disk caching)
+*   **Animations**: Lottie + Compose Animation API
+
+### Project Structure
+```bash
 com.elysium.guild/
-├── di/                  # Hilt modules for Network, Database, and Utils
+├── di/                  # Hilt modules (Network, Database, Preference)
 ├── ui/
-│   ├── screens/         # BossTimers, Leaderboard, Events, Profile
-│   ├── components/      # Centralized UI cards and glassy components
-│   └── theme/           # Adaptive Material 3 Color Schemes
-├── viewmodel/           # State management for all major screens
-├── models/              # Robust data models with API mapping
-├── repository/          # Data layer with detailed error reporting
-├── database/            # Room Database and DAO definitions
-├── widget/              # BossBubbleService and Overlay management
-└── utils/               # Constants, UIUtils, Worker, and Notification Helper
+│   ├── components/      # Glassy UI, Legendary Orbs, Custom SearchBars
+│   ├── screens/         # BossTimers, Leaderboard, Events, Profile, Onboarding
+│   └── theme/           # Elysium Gold & Deep Sea color schemes
+├── viewmodel/           # State management with StateFlow
+├── repository/          # SSOT (Single Source of Truth) data management
+├── network/             # Retrofit interfaces and Update Manifest API
+├── database/            # Room DB, DAOs, and Entities
+├── widget/              # Floating Bubble Service (Overlay HUD)
+└── utils/               # Constants, NotificationHelpers, and UI Tools
 ```
+
+---
 
 ## 📦 Setup & Deployment
 
-### For Developers
-1.  Open in **Android Studio Ladybug** (or later).
-2.  Ensure **JDK 17** is configured.
-3.  Set the `BASE_URL` in `Constants.kt` to point to your API instance.
+### Developer Prerequisites
+1.  **IDE**: Android Studio Ladybug (2024.2.1) or newer.
+2.  **JDK**: Version 17.
+3.  **API**: Set your `BASE_URL` in `Constants.kt`.
 
-### For Releasing Updates
-The app uses a fully automated **GitHub Actions** pipeline:
-1.  Update `versionCode` and `versionName` in `app/build.gradle`.
-2.  Update `update-manifest.json` in the root folder.
-3.  Push changes: `git push origin main`.
-4.  Create a tag: `git tag v1.1.3 && git push origin v1.1.3`.
-5.  GitHub will build the APK and attach it to the release automatically.
+### Automated Release Workflow
+The app uses a fully automated **GitHub Actions** CI/CD pipeline:
+1.  **Version Bump**: Update `versionCode` and `versionName` in `app/build.gradle`.
+2.  **Manifest Update**: Synchronize `update-manifest.json` at the root.
+3.  **Deploy**: 
+    ```bash
+    git tag v1.2.4
+    git push origin v1.2.4
+    ```
+4.  **Result**: GitHub automatically builds the signed APK and attaches it to a new Release.
 
 ---
-**Built with ❤️ by the Elysium Development Team**
+
+## 🛡 System Requirements & Permissions
+To ensure 100% notification reliability on modern Android versions, the app requests:
+*   **POST_NOTIFICATIONS**: For boss and event alerts.
+*   **SYSTEM_ALERT_WINDOW**: For the Floating Bubble HUD.
+*   **SCHEDULE_EXACT_ALARM**: To ensure alerts fire exactly when needed.
+*   **REQUEST_IGNORE_BATTERY_OPTIMIZATIONS**: Prevents the system from killing the background timer service.
+
+---
+**Built with ❤️ for the Elysium Guild**
