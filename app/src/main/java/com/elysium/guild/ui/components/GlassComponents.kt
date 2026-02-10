@@ -18,15 +18,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.*
 
 @Composable
 fun ElysiumGlassCard(
@@ -34,6 +36,7 @@ fun ElysiumGlassCard(
     cornerRadius: Dp = 24.dp,
     statusColor: Color = Color.Transparent,
     glowColor: Color = Color.Transparent,
+    showLegendaryEffect: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
@@ -42,25 +45,17 @@ fun ElysiumGlassCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Requirement 8: Spring-Based Micro-interactions
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
         label = "ScaleAnimation"
     )
 
-    // Requirement 15: Adaptive Glows (Breathing animation)
     val infiniteTransition = rememberInfiniteTransition(label = "GlowPulse")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
         targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
+        animationSpec = infiniteRepeatable(animation = tween(1500, easing = LinearOutSlowInEasing), repeatMode = RepeatMode.Reverse),
         label = "PulseAlpha"
     )
 
@@ -73,52 +68,45 @@ fun ElysiumGlassCard(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer {
+            .graphicsLayer { 
                 scaleX = scale
                 scaleY = scale
             }
+            .legendaryOrbEffect(enabled = showLegendaryEffect, glowColor = animatedGlowColor, radius = cornerRadius)
             .then(
                 if (onClick != null) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onClick
-                    )
+                    Modifier.clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
                 } else Modifier
             )
-            // Requirement 3: Refined Glass Borders
-            .border(
-                width = if (isDark) 1.dp else 1.5.dp,
-                brush = Brush.linearGradient(
-                    colors = if (animatedGlowColor != Color.Transparent) {
-                        listOf(
-                            animatedGlowColor.copy(alpha = pulseAlpha),
-                            animatedGlowColor.copy(alpha = 0.1f),
-                            animatedGlowColor.copy(alpha = pulseAlpha)
-                        )
-                    } else {
-                        listOf(
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.2f else 0.3f),
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.1f)
-                        )
-                    }
-                ),
-                shape = RoundedCornerShape(cornerRadius)
+            .then(
+                if (showLegendaryEffect) Modifier else Modifier.border(
+                    width = if (isDark) 1.dp else 1.5.dp,
+                    brush = Brush.linearGradient(
+                        colors = if (animatedGlowColor != Color.Transparent) {
+                            listOf(
+                                animatedGlowColor.copy(alpha = pulseAlpha),
+                                animatedGlowColor.copy(alpha = 0.1f),
+                                animatedGlowColor.copy(alpha = pulseAlpha)
+                            )
+                        } else {
+                            listOf(
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.2f else 0.3f),
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.1f)
+                            )
+                        }
+                    ),
+                    shape = RoundedCornerShape(cornerRadius)
+                )
             ),
         shape = RoundedCornerShape(cornerRadius),
-        // Requirement 3: Authenticated Glassmorphism
-        color = if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+        color = if (showLegendaryEffect) Color(0xFF0A0C14).copy(alpha = 0.9f)
+                else if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
                 else MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-        tonalElevation = if (isDark) 8.dp else 2.dp,
-        shadowElevation = if (isDark) 0.dp else 8.dp
+        tonalElevation = if (showLegendaryEffect) 0.dp else if (isDark) 8.dp else 2.dp,
+        shadowElevation = if (showLegendaryEffect) 0.dp else if (isDark) 0.dp else 8.dp
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
-            // Requirement 3: Real-time blur simulation (Note: requires a background layer to be effective)
-            // We use a slightly more opaque background if blur is not available on older APIs,
-            // but in Compose we can apply it to the content behind if managed correctly.
-            // For this component, we'll focus on the internal "frosted" layer.
-            
-            if (statusColor != Color.Transparent) {
+            if (statusColor != Color.Transparent && !showLegendaryEffect) {
                 Box(
                     modifier = Modifier
                         .matchParentSize()
@@ -157,6 +145,113 @@ fun ElysiumGlassCard(
     }
 }
 
+private fun Modifier.legendaryOrbEffect(enabled: Boolean, glowColor: Color, radius: Dp) = if (!enabled) this else composed {
+    val infiniteTransition = rememberInfiniteTransition(label = "OrbRotation")
+    val progress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "OrbProgress"
+    )
+
+    this.drawWithContent {
+        drawContent()
+
+        val progress1 = progress
+        val progress2 = (progress + 0.5f).let { if (it > 1f) it - 1f else it }
+
+        drawPremiumLightPath(progress = progress1, glowColor = glowColor, cornerRadius = radius.toPx())
+        drawPremiumLightPath(progress = progress2, glowColor = glowColor, cornerRadius = radius.toPx())
+    }
+}
+
+private fun DrawScope.drawPremiumLightPath(progress: Float, glowColor: Color, cornerRadius: Float) {
+    val width = size.width
+    val height = size.height
+    if (width == 0f || height == 0f) return
+
+    val r = cornerRadius.coerceAtMost(width / 2).coerceAtMost(height / 2)
+    val sw = width - 2 * r
+    val sh = height - 2 * r
+    val arc = (PI.toFloat() * r) / 2f
+    val perimeter = 2 * sw + 2 * sh + 4 * arc
+
+    fun getPointOnPath(dist: Float): Offset {
+        val p = dist.rem(perimeter).let { if (it < 0) it + perimeter else it }
+        return when {
+            p < sw -> Offset(r + p, 0f)
+            p < sw + arc -> {
+                val a = -PI / 2 + (p - sw) / arc * (PI / 2f)
+                Offset((width - r + r * cos(a.toDouble())).toFloat(), (r + r * sin(a.toDouble())).toFloat())
+            }
+            p < sw + arc + sh -> Offset(width, r + (p - (sw + arc)))
+            p < sw + 2 * arc + sh -> {
+                val a = 0.0 + (p - (sw + arc + sh)) / arc * (PI / 2f)
+                Offset((width - r + r * cos(a.toDouble())).toFloat(), (height - r + r * sin(a.toDouble())).toFloat())
+            }
+            p < 2 * sw + 2 * arc + sh -> Offset(width - r - (p - (sw + 2 * arc + sh)), height)
+            p < 2 * sw + 3 * arc + sh -> {
+                val a = PI / 2 + (p - (2 * sw + 2 * arc + sh)) / arc * (PI / 2f)
+                Offset((r + r * cos(a.toDouble())).toFloat(), (height - r + r * sin(a.toDouble())).toFloat())
+            }
+            p < 2 * sw + 3 * arc + 2 * sh -> Offset(0f, height - r - (p - (2 * sw + 3 * arc + sh)))
+            else -> {
+                val a = PI + (p - (2 * sw + 3 * arc + 2 * sh)) / arc * (PI / 2f)
+                Offset((r + r * cos(a.toDouble())).toFloat(), (r + r * sin(a.toDouble())).toFloat())
+            }
+        }
+    }
+
+    val centerPos = progress * perimeter
+    val tailLength = perimeter * 0.45f
+    val segments = 120 
+    val maxStrokeWidth = 3.5.dp.toPx() 
+
+    for (i in 0 until segments) {
+        val normalizedI = i.toFloat() / segments
+        // Spindle shape curve: 0 at start, 1 at mid, 0 at end
+        val shapeRatio = sin(normalizedI * PI.toFloat())
+        
+        // Center the spindle on the centerPos
+        val pos = centerPos + (normalizedI - 0.5f) * tailLength
+        val p1 = getPointOnPath(pos)
+        val p2 = getPointOnPath(pos + (tailLength / segments))
+        
+        // Gaussian-like highlight centered at the middle
+        val highlightIntensity = exp(-((normalizedI - 0.5f).pow(2)) / (2 * 0.12f.pow(2)))
+
+        // Atmospheric Glow
+        drawLine(
+            color = glowColor.copy(alpha = shapeRatio.pow(3f) * 0.12f),
+            start = p1,
+            end = p2,
+            strokeWidth = (maxStrokeWidth * 5f) * shapeRatio,
+            cap = StrokeCap.Round,
+            blendMode = BlendMode.Screen
+        )
+
+        // Primary Color Core with integrated mid-highlight
+        val segmentColor = Color(
+            red = min(1f, glowColor.red + (1f - glowColor.red) * highlightIntensity * 0.4f),
+            green = min(1f, glowColor.green + (1f - glowColor.green) * highlightIntensity * 0.4f),
+            blue = min(1f, glowColor.blue + (1f - glowColor.blue) * highlightIntensity * 0.4f),
+            alpha = shapeRatio * (0.5f + 0.3f * highlightIntensity)
+        )
+
+        drawLine(
+            color = segmentColor,
+            start = p1,
+            end = p2,
+            strokeWidth = maxStrokeWidth * shapeRatio,
+            cap = StrokeCap.Round,
+            blendMode = BlendMode.Screen
+        )
+    }
+}
+
 @Composable
 fun ElysiumGlassSearchBar(
     query: String,
@@ -165,8 +260,6 @@ fun ElysiumGlassSearchBar(
     placeholder: String,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
-    
     ElysiumGlassCard(
         modifier = modifier.height(56.dp),
         cornerRadius = 16.dp

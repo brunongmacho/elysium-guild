@@ -44,10 +44,7 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import coil.size.Size
 import com.elysium.guild.models.*
-import com.elysium.guild.ui.theme.ElysiumGold
-import com.elysium.guild.ui.theme.ElysiumPurple
-import com.elysium.guild.ui.theme.ElysiumPurpleLight
-import com.elysium.guild.ui.theme.StatusReadyGlow
+import com.elysium.guild.ui.theme.*
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.UIUtils
 import kotlinx.datetime.Instant
@@ -67,16 +64,19 @@ fun BossTimerCard(
     val isDark = isSystemInDarkTheme()
     
     val isElysiumTurn = boss.rotation?.isOurTurn == true
+    val isSoon = boss.status == Constants.STATUS_SOON || (boss.timeRemaining != null && boss.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS)
     val isReady = boss.status == Constants.STATUS_READY || boss.status == Constants.STATUS_OVERDUE || (boss.timeRemaining ?: 1L) <= 0L
+    val isTracking = boss.status == Constants.STATUS_TRACKING
 
-    // FIX: Distinct color for Elysium Turn (Purple) to differentiate from Soon (Yellow)
     val baseStatusColor = remember(boss.status, boss.timeRemaining, isElysiumTurn, isDark) {
         when {
             isReady ->
                 if (isDark) StatusReadyGlow else Color(0xFF00796B) // Active: Teal/Green
+            isElysiumTurn && isSoon ->
+                if (isDark) ElysiumAmethyst else ElysiumAmethystDark // Guild Turn + Soon: Amethyst Magenta
             isElysiumTurn ->
                 if (isDark) ElysiumPurpleLight else ElysiumPurple // Guild Turn: Purple
-            boss.status == Constants.STATUS_SOON || (boss.timeRemaining != null && boss.timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS) ->
+            isSoon ->
                 if (isDark) Color(0xFFFFCC00) else Color(0xFFF57C00) // Soon: Yellow/Orange
             else -> 
                 if (isDark) Color(0xFF888888) else Color(0xFF5D4037) // Tracking: Muted
@@ -93,10 +93,10 @@ fun BossTimerCard(
         modifier = modifier.padding(vertical = 6.dp),
         statusColor = animatedColor,
         glowColor = when {
-            isReady -> animatedColor
-            isElysiumTurn -> if (isDark) ElysiumPurpleLight else ElysiumPurple
+            isReady || isElysiumTurn || isSoon || isTracking -> animatedColor
             else -> Color.Transparent
         },
+        showLegendaryEffect = isElysiumTurn,
         onClick = { /* Detail navigation can go here */ }
     ) {
         Column(
@@ -117,7 +117,7 @@ fun BossTimerCard(
                     BossAvatar(
                         boss = boss, 
                         statusColor = animatedColor, 
-                        isUrgent = isReady,
+                        isUrgent = isReady || (isElysiumTurn && isSoon),
                         modifier = Modifier.sharedElement(
                             rememberSharedContentState(key = "boss-image-${boss.bossName}"),
                             animatedVisibilityScope = animatedVisibilityScope
@@ -176,7 +176,7 @@ fun BossTimerCard(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     if (boss.rotation?.isRotating == true) {
-                        RotationStatus(boss.rotation!!)
+                        RotationStatus(boss.rotation!!, animatedColor)
                     }
 
                     SpawnTimeText(boss, useLocalTimezone)
@@ -331,7 +331,7 @@ private fun StatusBadge(
 }
 
 @Composable
-private fun RotationStatus(rotation: RotationInfo) {
+private fun RotationStatus(rotation: RotationInfo, highlightColor: Color) {
     val isDark = isSystemInDarkTheme()
     val isElysium = rotation.isOurTurn == true
 
@@ -340,14 +340,14 @@ private fun RotationStatus(rotation: RotationInfo) {
             .fillMaxWidth()
             .background(
                 color = if (isElysium) 
-                    MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.1f else 0.15f)
+                    highlightColor.copy(alpha = if (isDark) 0.1f else 0.15f)
                 else 
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), 
                 shape = RoundedCornerShape(8.dp)
             )
             .border(
                 width = 1.dp,
-                color = if (isElysium) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent,
+                color = if (isElysium) highlightColor.copy(alpha = 0.4f) else Color.Transparent,
                 shape = RoundedCornerShape(8.dp)
             )
             .padding(8.dp)
@@ -358,7 +358,7 @@ private fun RotationStatus(rotation: RotationInfo) {
                     modifier = Modifier
                         .size(8.dp)
                         .background(
-                            if (isElysium) MaterialTheme.colorScheme.primary else Color.Gray,
+                            if (isElysium) highlightColor else Color.Gray,
                             CircleShape
                         )
                 )
@@ -366,7 +366,7 @@ private fun RotationStatus(rotation: RotationInfo) {
                 Text(
                     text = if (isElysium) "Current: $current (GUILD TURN)" else "Current: $current",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isElysium) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isElysium) highlightColor else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = if (isElysium) FontWeight.ExtraBold else FontWeight.Medium,
                     letterSpacing = 0.5.sp
                 )
