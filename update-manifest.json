@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 29,
-  "latestVersionName": "1.2.3",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.2.3/app-debug.apk",
-  "releaseNotes": "- Added premium Legendary Orb light streak effect for Elysium rotation turns.\n- Redesigned boss card animations for smoother, high-end aesthetic.\n- Improved glassmorphism visuals and borderless mode transitions.\n- Performance optimizations for UI animations.",
+  "latestVersionCode": 30,
+  "latestVersionName": "1.2.4",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.2.4/app-debug.apk",
+  "releaseNotes": "- Removed redundant share button (hold card to share).\n- Refined spindle-shaped legendary streak visuals for better blending and aesthetics.\n- Improved borderless mode transitions for rotation turns.",
   "isForceUpdate": false
 }

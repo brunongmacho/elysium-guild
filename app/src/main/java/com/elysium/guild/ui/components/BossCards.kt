@@ -155,20 +155,6 @@ fun BossTimerCard(
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = { shareBossStatus(context, boss, currentTime.value) },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Share,
-                                    contentDescription = "Share",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(4.dp))
-
                             StatusBadge(boss = boss, currentTime = currentTime, statusColor = animatedColor)
                         }
                     }
