@@ -76,7 +76,40 @@ object Constants {
     const val SPAWNING_SOON_THRESHOLD_MINUTES = 30
     const val SPAWNING_SOON_THRESHOLD_MS = SPAWNING_SOON_THRESHOLD_MINUTES * 60 * 1000L
     
-    // UI Colors - Status
+    // UI Values
+    const val CARD_PADDING_VERTICAL = 4
+    const val CARD_PADDING_HORIZONTAL = 16
+    const val AVATAR_SIZE = 60
+    const val AVATAR_BORDER_WIDTH = 2
+    const val SHIMMER_DURATION = 1000
+    const val COLOR_TRANSITION_DURATION = 600
+    const val SCALE_ANIMATION_DURATION = 1000
+    const val SCALE_TARGET_URGENT = 1.1f
+    const val BORDER_ALPHA_MIN = 0.3f
+    const val BORDER_ALPHA_MAX = 0.7f
+    const val GLOW_ALPHA = 0.4f
+    
+    // UI Alphas
+    const val ALPHA_COMPLETED = 0.6f
+    const val ALPHA_ACTIVE = 1.0f
+    const val ALPHA_ICON_BG_DARK = 0.15f
+    const val ALPHA_ICON_BG_LIGHT = 0.1f
+    const val ALPHA_BORDER_DEFAULT = 0.5f
+    const val ALPHA_COUNTDOWN_BG_DARK = 0.1f
+    const val ALPHA_COUNTDOWN_BG_LIGHT = 0.05f
+    const val ALPHA_COUNTDOWN_BORDER = 0.3f
+    const val ALPHA_PROGRESS_TRACK = 0.1f
+    const val ALPHA_PROGRESS_BORDER = 0.2f
+    const val ALPHA_PROGRESS_FILL = 0.7f
+    const val ALPHA_BADGE_MIN = 0.5f
+    
+    // Status Strings
+    const val STATUS_READY = "ready"
+    const val STATUS_SOON = "soon"
+    const val STATUS_TRACKING = "tracking"
+    const val STATUS_OVERDUE = "overdue"
+
+    // UI Colors - Status (Consolidated in Color.kt primarily, but keeping mapping here)
     val COLOR_READY = Color(0xFF10B981) // Green
     val COLOR_SOON = Color(0xFFF59E0B) // Amber/Gold
     val COLOR_OVERDUE = Color(0xFFEF4444) // Red
@@ -99,12 +132,6 @@ object Constants {
     const val LABEL_READY = "READY"
     const val LABEL_SOON = "SOON"
     const val LABEL_TRACKING = "TRACKING"
-    
-    // Status Strings
-    const val STATUS_READY = "ready"
-    const val STATUS_SOON = "soon"
-    const val STATUS_TRACKING = "tracking"
-    const val STATUS_OVERDUE = "overdue"
 
     // Donation Strings
     const val DONATION_TITLE = "Support Elysium Guild"

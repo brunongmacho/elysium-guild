@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 enum class LeaderboardPeriod(val value: String?, val label: String) {
     ALL_TIME(null, "All Time"),
@@ -51,21 +53,17 @@ class LeaderboardViewModel @Inject constructor(
     }
     
     fun refreshLeaderboard(isFilterChange: Boolean = false) {
-        // Cancel any existing refresh job to handle rapid filter changes
         refreshJob?.cancel()
         
         refreshJob = viewModelScope.launch {
             val isInitial = _uiState.value.attendanceLeaderboard.isEmpty() && _uiState.value.pointsLeaderboard.isEmpty()
             
-            // Set loading state
             if (isInitial || isFilterChange) {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             } else {
                 _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
             }
             
-            // Artificial delay to make transitions feel intentional and smooth
-            // and to prevent UI flickering on very fast responses
             if (isFilterChange) delay(300)
             
             try {
@@ -73,24 +71,34 @@ class LeaderboardViewModel @Inject constructor(
                     LeaderboardType.ATTENDANCE -> {
                         val period = _uiState.value.selectedPeriod.value
                         val leaderboard = repository.getAttendanceLeaderboard(period)
+
+                        val processed = withContext(Dispatchers.Default) {
+                            applyCurrentFilter(leaderboard, _uiState.value.searchQuery)
+                        }
+
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             isRefreshing = false,
-                            attendanceLeaderboard = leaderboard
+                            attendanceLeaderboard = leaderboard,
+                            filteredLeaderboard = processed
                         )
                     }
                     LeaderboardType.POINTS -> {
                         val leaderboard = repository.getPointsLeaderboard()
+
+                        val processed = withContext(Dispatchers.Default) {
+                            applyCurrentFilter(sortPoints(leaderboard, _uiState.value.selectedPointsFilter), _uiState.value.searchQuery)
+                        }
+
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             isRefreshing = false,
-                            pointsLeaderboard = leaderboard
+                            pointsLeaderboard = leaderboard,
+                            filteredLeaderboard = processed
                         )
                     }
                 }
             } catch (e: Exception) {
-                // Check if the coroutine was cancelled (by a new filter click)
-                // If it was cancelled, we don't want to update the UI state with an error
                 if (e !is kotlinx.coroutines.CancellationException) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -107,7 +115,6 @@ class LeaderboardViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 leaderboardType = type, 
                 searchQuery = "",
-                // Clear existing data to ensure a fresh load look
                 attendanceLeaderboard = if (type == LeaderboardType.ATTENDANCE) emptyList() else _uiState.value.attendanceLeaderboard,
                 pointsLeaderboard = if (type == LeaderboardType.POINTS) emptyList() else _uiState.value.pointsLeaderboard
             )
@@ -120,7 +127,7 @@ class LeaderboardViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 selectedPeriod = period, 
                 searchQuery = "",
-                attendanceLeaderboard = emptyList() // Force loading state
+                attendanceLeaderboard = emptyList()
             )
             refreshLeaderboard(isFilterChange = true)
         }
@@ -128,16 +135,47 @@ class LeaderboardViewModel @Inject constructor(
 
     fun setPointsFilter(filter: PointsFilter) {
         if (filter != _uiState.value.selectedPointsFilter) {
-            _uiState.value = _uiState.value.copy(
-                selectedPointsFilter = filter,
-                pointsLeaderboard = emptyList() // Force loading state
-            )
-            refreshLeaderboard(isFilterChange = true)
+            viewModelScope.launch {
+                val sorted = withContext(Dispatchers.Default) {
+                    applyCurrentFilter(sortPoints(_uiState.value.pointsLeaderboard, filter), _uiState.value.searchQuery)
+                }
+                _uiState.value = _uiState.value.copy(
+                    selectedPointsFilter = filter,
+                    filteredLeaderboard = sorted
+                )
+            }
         }
     }
 
     fun onSearchQueryChanged(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
+        viewModelScope.launch {
+            val list = if (_uiState.value.leaderboardType == LeaderboardType.ATTENDANCE) {
+                _uiState.value.attendanceLeaderboard
+            } else {
+                sortPoints(_uiState.value.pointsLeaderboard, _uiState.value.selectedPointsFilter)
+            }
+
+            val filtered = withContext(Dispatchers.Default) {
+                applyCurrentFilter(list, query)
+            }
+
+            _uiState.value = _uiState.value.copy(
+                searchQuery = query,
+                filteredLeaderboard = filtered
+            )
+        }
+    }
+
+    private fun sortPoints(list: List<PointsLeaderboardEntry>, filter: PointsFilter): List<PointsLeaderboardEntry> {
+        return when (filter) {
+            PointsFilter.EARNED -> list.sortedByDescending { it.pointsEarned }
+            PointsFilter.SPENT -> list.sortedByDescending { it.pointsSpent }
+            PointsFilter.AVAILABLE -> list.sortedByDescending { it.pointsAvailable }
+        }
+    }
+
+    private fun applyCurrentFilter(list: List<LeaderboardEntry>, query: String): List<LeaderboardEntry> {
+        return if (query.isBlank()) list else list.filter { it.username.contains(query, ignoreCase = true) }
     }
 }
 
@@ -146,6 +184,7 @@ data class LeaderboardUiState(
     val isRefreshing: Boolean = false,
     val attendanceLeaderboard: List<AttendanceLeaderboardEntry> = emptyList(),
     val pointsLeaderboard: List<PointsLeaderboardEntry> = emptyList(),
+    val filteredLeaderboard: List<LeaderboardEntry> = emptyList(),
     val leaderboardType: LeaderboardType = LeaderboardType.ATTENDANCE,
     val selectedPeriod: LeaderboardPeriod = LeaderboardPeriod.ALL_TIME,
     val selectedPointsFilter: PointsFilter = PointsFilter.EARNED,
@@ -162,16 +201,6 @@ data class LeaderboardUiState(
                     PointsFilter.SPENT -> pointsLeaderboard.sortedByDescending { it.pointsSpent }
                     PointsFilter.AVAILABLE -> pointsLeaderboard.sortedByDescending { it.pointsAvailable }
                 }
-            }
-        }
-
-    val filteredLeaderboard: List<LeaderboardEntry>
-        get() {
-            val list = sortedLeaderboard
-            return if (searchQuery.isBlank()) {
-                list
-            } else {
-                list.filter { it.username.contains(searchQuery, ignoreCase = true) }
             }
         }
 }

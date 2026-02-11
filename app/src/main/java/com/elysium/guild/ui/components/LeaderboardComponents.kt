@@ -16,6 +16,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.elysium.guild.models.*
 import com.elysium.guild.utils.Constants
+import com.elysium.guild.utils.HapticUtils
 import com.elysium.guild.viewmodel.PointsFilter
 import kotlin.random.Random
 
@@ -111,6 +113,7 @@ private fun PodiumItem(
     animate: Boolean = false,
     delay: Int = 0
 ) {
+    val context = LocalContext.current
     val height by animateDpAsState(
         targetValue = if (animate) targetHeight else 0.dp,
         animationSpec = spring(
@@ -124,7 +127,9 @@ private fun PodiumItem(
     Box(modifier = modifier.height(height)) {
         ElysiumGlassCard(
             modifier = Modifier.fillMaxSize(),
-            statusColor = baseColor
+            statusColor = baseColor,
+            glowColor = if (rank == 1) baseColor.copy(alpha = 0.5f) else Color.Transparent,
+            onClick = { HapticUtils.performHapticFeedback(context, duration = 10) }
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 PodiumGlitterEffect(
@@ -163,10 +168,10 @@ private fun PodiumItem(
                         Text(
                             text = annotatedName,
                             style = MaterialTheme.typography.labelLarge.copy(
-                                shadow = if (searchQuery.isNotEmpty()) Shadow(
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                    blurRadius = 8f
-                                ) else null
+                                shadow = Shadow(
+                                    color = if (rank == 1) baseColor.copy(alpha = 0.5f) else Color.Transparent,
+                                    blurRadius = if (rank == 1) 12f else 0f
+                                )
                             ),
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -261,7 +266,7 @@ fun PodiumGlitterEffect(color: Color, modifier: Modifier = Modifier.fillMaxSize(
             val x = indRandom.nextFloat() * size.width
             val y = indRandom.nextFloat() * size.height
             val radius = (indRandom.nextFloat() * 1.0.dp.toPx()) + 0.5.dp.toPx()
-            val alpha = (Math.sin(phase * Math.PI).toFloat()).coerceIn(0f, 1f)
+            val alpha = (kotlin.math.sin(phase * Math.PI).toFloat()).coerceIn(0f, 1f)
             if (alpha > 0.01f) {
                 drawCircle(
                     color = Color.White.copy(alpha = alpha * 0.3f * indRandom.nextFloat()),
@@ -307,7 +312,11 @@ fun LeaderboardMemberCard(
     searchQuery: String = "",
     modifier: Modifier = Modifier
 ) {
-    ElysiumGlassCard(modifier = modifier) {
+    val context = LocalContext.current
+    ElysiumGlassCard(
+        modifier = modifier,
+        onClick = { HapticUtils.performHapticFeedback(context, duration = 10) }
+    ) {
         Row(
             modifier = Modifier
                 .padding(16.dp)
@@ -331,10 +340,10 @@ fun LeaderboardMemberCard(
                 Text(
                     text = annotatedName,
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        shadow = if (searchQuery.isNotEmpty()) Shadow(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                            blurRadius = 8f
-                        ) else null
+                        shadow = Shadow(
+                            color = if (searchQuery.isNotEmpty()) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
+                            blurRadius = if (searchQuery.isNotEmpty()) 8f else 0f
+                        )
                     ),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface

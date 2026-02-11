@@ -6,6 +6,8 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 import com.google.gson.JsonElement
+import com.elysium.guild.utils.Constants
+import kotlinx.datetime.Instant
 
 // Boss Timer Models
 @Immutable
@@ -23,7 +25,11 @@ data class BossTimer(
     @SerializedName("is_predicted", alternate = ["isPredicted"]) val isPredicted: Boolean = false,
     val rotation: RotationInfo? = null,
     @SerializedName("image_url", alternate = ["imageUrl"]) val imageUrl: String? = null
-)
+) {
+    fun isReady() = status == Constants.STATUS_READY || status == Constants.STATUS_OVERDUE || (timeRemaining ?: 1L) <= 0L
+    fun isSoon() = !isReady() && (status == Constants.STATUS_SOON || (timeRemaining != null && timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
+    fun isTracking() = !isReady() && !isSoon()
+}
 
 @Immutable
 data class RotationInfo(
@@ -79,7 +85,27 @@ data class GuildEvent(
     @SerializedName("end_time", alternate = ["endTime"]) val endTime: String?,
     val description: String,
     @SerializedName("reminder_set", alternate = ["reminderSet"]) val reminderSet: Boolean
-)
+) {
+    fun getStatus(now: Instant): EventStatus {
+        return try {
+            val start = Instant.parse(startTime)
+            val end = endTime?.let { Instant.parse(it) }
+            
+            when {
+                end != null && now >= end -> EventStatus.COMPLETED
+                now >= start && (end == null || now < end) -> EventStatus.ACTIVE
+                (start - now).inWholeMinutes < 60 -> EventStatus.SOON
+                else -> EventStatus.UPCOMING
+            }
+        } catch (e: Exception) { EventStatus.UPCOMING }
+    }
+
+    fun isLive(now: Instant): Boolean = getStatus(now) == EventStatus.ACTIVE
+}
+
+enum class EventStatus {
+    ACTIVE, SOON, UPCOMING, COMPLETED
+}
 
 enum class EventType {
     WORLD_BOSS,

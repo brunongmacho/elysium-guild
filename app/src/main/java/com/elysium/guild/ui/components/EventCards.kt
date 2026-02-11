@@ -4,7 +4,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,14 +13,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.elysium.guild.R
 import com.elysium.guild.models.GuildEvent
+import com.elysium.guild.models.EventStatus
 import com.elysium.guild.utils.UIUtils
+import com.elysium.guild.utils.Constants
+import com.elysium.guild.utils.HapticUtils
 import kotlinx.datetime.Instant
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -34,42 +41,46 @@ fun ElysiumEventCard(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    val isDark = isSystemInDarkTheme()
+    val context = LocalContext.current
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val now = currentTime.value
+    
+    val status = event.getStatus(now)
+    val isLive = status == EventStatus.ACTIVE
     
     val targetColor = remember(event.startTime, event.endTime, now, isDark) {
         UIUtils.getEventStatusColor(event.startTime, event.endTime, now, isDark)
     }
 
     val animatedColor by animateColorAsState(
-        targetValue = targetColor,
-        animationSpec = tween(durationMillis = 500),
+        targetValue = if (status == EventStatus.COMPLETED) Color.Gray else targetColor,
+        animationSpec = tween(durationMillis = Constants.COLOR_TRANSITION_DURATION),
         label = "EventColorAnimation"
     )
-
-    val start = try { Instant.parse(event.startTime) } catch (e: Exception) { now }
-    val end = event.endTime?.let { try { Instant.parse(it) } catch(e: Exception) { null } }
-    val isLive = end?.let { now >= start && now < it } ?: (now >= start && (now - start).inWholeMinutes < 60)
 
     val infiniteTransition = rememberInfiniteTransition(label = "LivePulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.02f,
+        targetValue = Constants.SCALE_TARGET_URGENT,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(Constants.SCALE_ANIMATION_DURATION, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Pulse"
     )
 
     ElysiumGlassCard(
-        modifier = modifier.then(if (isLive) Modifier.scale(pulseScale) else Modifier),
+        modifier = modifier
+            .then(if (isLive) Modifier.scale(pulseScale) else Modifier)
+            .alpha(if (status == EventStatus.COMPLETED) 0.6f else 1f),
         statusColor = animatedColor,
-        glowColor = if (isLive) animatedColor else Color.Transparent,
-        onClick = { /* Navigation or detail can go here */ }
+        glowColor = if (isLive) animatedColor.copy(alpha = Constants.GLOW_ALPHA) else Color.Transparent,
+        onClick = { 
+            HapticUtils.performHapticFeedback(context, duration = 10)
+        }
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Constants.CARD_PADDING_HORIZONTAL.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
@@ -104,12 +115,10 @@ fun ElysiumEventCard(
                             text = event.name,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = if (status == EventStatus.COMPLETED) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
                         )
-                        if (isLive) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            EventLiveBadge(animatedColor)
-                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        EventStatusBadge(status, animatedColor)
                     }
                     
                     Text(
@@ -127,32 +136,38 @@ fun ElysiumEventCard(
                 lineHeight = 18.sp
             )
 
-            // Requirement 17: Progress Gauge for events
-            if (isLive && end != null) {
-                val total = (end - start).inWholeMilliseconds
-                val elapsed = (now - start).inWholeMilliseconds
-                if (total > 0) {
-                    val progress = (elapsed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                    EventProgressBar(progress, animatedColor)
+            // Progress Gauge for events
+            if (isLive) {
+                val start = try { Instant.parse(event.startTime) } catch (e: Exception) { now }
+                val end = event.endTime?.let { try { Instant.parse(it) } catch(e: Exception) { null } }
+                if (end != null) {
+                    val total = (end - start).inWholeMilliseconds
+                    val elapsed = (now - start).inWholeMilliseconds
+                    if (total > 0) {
+                        val progress = (elapsed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                        EventProgressBar(progress, animatedColor)
+                    }
                 }
             }
 
             // Countdown Badge
-            val countdown = UIUtils.calculateEventCountdown(event.startTime, event.endTime, now)
-            if (countdown.isNotEmpty()) {
-                Surface(
-                    color = animatedColor.copy(alpha = if (isDark) 0.1f else 0.05f),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.align(Alignment.End),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, animatedColor.copy(alpha = 0.3f))
-                ) {
-                    Text(
-                        text = countdown,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = animatedColor,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+            if (status != EventStatus.COMPLETED) {
+                val countdown = UIUtils.calculateEventCountdown(event.startTime, event.endTime, now)
+                if (countdown.isNotEmpty()) {
+                    Surface(
+                        color = animatedColor.copy(alpha = if (isDark) 0.1f else 0.05f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.align(Alignment.End),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, animatedColor.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            text = countdown,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = animatedColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -160,26 +175,42 @@ fun ElysiumEventCard(
 }
 
 @Composable
-fun EventLiveBadge(color: Color) {
-    val infiniteTransition = rememberInfiniteTransition(label = "Live")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse),
-        label = "Alpha"
-    )
-    Surface(
-        color = color.copy(alpha = alpha),
-        shape = RoundedCornerShape(4.dp)
-    ) {
-        Text(
-            text = "LIVE",
-            color = Color.White,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-            fontSize = 8.sp
+fun EventStatusBadge(status: EventStatus, color: Color) {
+    val infiniteTransition = rememberInfiniteTransition(label = "StatusBadgeAnim")
+    val alpha by if (status == EventStatus.ACTIVE) {
+        infiniteTransition.animateFloat(
+            initialValue = 0.5f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse),
+            label = "Alpha"
         )
+    } else {
+        remember { mutableStateOf(1f) }
+    }
+
+    if (status == EventStatus.UPCOMING) return
+
+    val labelRes = when(status) {
+        EventStatus.ACTIVE -> R.string.event_status_active
+        EventStatus.SOON -> R.string.event_status_soon
+        EventStatus.COMPLETED -> R.string.event_status_completed
+        else -> null
+    }
+
+    if (labelRes != null) {
+        Surface(
+            color = color.copy(alpha = alpha),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text(
+                text = stringResource(labelRes),
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                fontSize = 8.sp
+            )
+        }
     }
 }
 
@@ -197,7 +228,7 @@ fun EventProgressBar(progress: Float, color: Color) {
                 .fillMaxWidth(progress)
                 .fillMaxHeight()
                 .background(
-                    Brush.horizontalGradient(listOf(color.copy(alpha = 0.7f), color)),
+                    Brush.horizontalGradient(listOf(color.copy(alpha = 0.5f), color)),
                     CircleShape
                 )
         )

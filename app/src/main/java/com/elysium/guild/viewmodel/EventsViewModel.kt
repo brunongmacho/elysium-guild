@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class EventsViewModel @Inject constructor(
@@ -57,11 +59,14 @@ class EventsViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
                 }
 
-                // Add a small delay for better UX on pull-to-refresh
                 if (!isInitial) delay(500)
 
                 val events = repository.getEvents()
-                val sortedEvents = sortEvents(events, Clock.System.now())
+                val now = Clock.System.now()
+
+                val sortedEvents = withContext(Dispatchers.Default) {
+                    sortEvents(events, now)
+                }
 
                 _uiState.value = _uiState.value.copy(
                     events = sortedEvents,
@@ -82,12 +87,8 @@ class EventsViewModel @Inject constructor(
 
     private fun sortEvents(events: List<GuildEvent>, now: Instant): List<GuildEvent> {
         return events.sortedWith(compareByDescending<GuildEvent> {
-            // Priority 1: Events that are currently running (between start and end time)
-            val start = Instant.parse(it.startTime)
-            val end = it.endTime?.let { e -> Instant.parse(e) }
-            end != null && now >= start && now < end
+            it.isLive(now)
         }.thenBy {
-            // Priority 2: Upcoming events sorted by start time
             Instant.parse(it.startTime)
         })
     }
@@ -96,10 +97,6 @@ class EventsViewModel @Inject constructor(
         val newValue = !_uiState.value.notificationsEnabled
         preferenceManager.setEventNotificationsEnabled(newValue)
         _uiState.value = _uiState.value.copy(notificationsEnabled = newValue)
-    }
-    
-    fun toggleReminder(event: GuildEvent) {
-        // Individual reminder toggle logic
     }
 }
 

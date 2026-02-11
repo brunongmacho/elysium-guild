@@ -1,10 +1,6 @@
 package com.elysium.guild.ui.screens
 
 import android.content.Context
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -35,6 +31,7 @@ import com.elysium.guild.ui.components.*
 import com.elysium.guild.ui.theme.ElysiumGold
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
+import com.elysium.guild.utils.HapticUtils
 import com.elysium.guild.viewmodel.BossTimersViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -79,7 +76,7 @@ fun BossTimersScreen(
     LaunchedEffect(Unit) {
         viewModel.refreshEvents.collectLatest { shouldScrollToTop ->
             if (viewModel.isHapticEnabled()) {
-                triggerHapticFeedback(context)
+                HapticUtils.performHapticFeedback(context)
             }
             if (shouldScrollToTop) {
                 listState.animateScrollToItem(0)
@@ -89,7 +86,7 @@ fun BossTimersScreen(
 
     LaunchedEffect(uiState.isRefreshing) {
         if (uiState.isRefreshing && viewModel.isHapticEnabled()) {
-            triggerHapticFeedback(context, duration = 15)
+            HapticUtils.performHapticFeedback(context, duration = 15)
         }
     }
     
@@ -241,9 +238,7 @@ fun BossTimersScreen(
                     
                     Box(modifier = Modifier.weight(1f)) {
                         if (uiState.isLoading && uiState.bosses.isEmpty()) {
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(5) { BossTimerShimmerItem() }
-                            }
+                            BossShimmerList()
                         } else if (uiState.error != null && uiState.bosses.isEmpty()) {
                             ErrorMessage(message = uiState.error!!, onRetry = { viewModel.refreshTimers() })
                         } else if (uiState.filteredBosses.isEmpty()) {
@@ -350,22 +345,5 @@ fun EmptyBossState(
         TextButton(onClick = onClearFilters) {
             Text("RESET FILTERS", fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
         }
-    }
-}
-
-private fun triggerHapticFeedback(context: Context, duration: Long = 50) {
-    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-        vibratorManager.defaultVibrator
-    } else {
-        @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-    }
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
-    } else {
-        @Suppress("DEPRECATION")
-        vibrator.vibrate(duration)
     }
 }

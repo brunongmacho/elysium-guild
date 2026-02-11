@@ -165,11 +165,11 @@ fun LeaderboardScreen(
 
                     Box(modifier = Modifier.weight(1f)) {
                         when {
-                            uiState.isLoading -> {
-                                LoadingIndicator()
+                            uiState.isLoading && uiState.filteredLeaderboard.isEmpty() -> {
+                                LeaderboardShimmerList()
                             }
 
-                            uiState.error != null -> {
+                            uiState.error != null && uiState.filteredLeaderboard.isEmpty() -> {
                                 ErrorMessage(
                                     message = uiState.error ?: "Unknown error",
                                     onRetry = { viewModel.refreshLeaderboard() }

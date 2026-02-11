@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 30,
-  "latestVersionName": "1.2.4",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.2.4/app-debug.apk",
-  "releaseNotes": "- Removed redundant share button (hold card to share).\n- Refined spindle-shaped legendary streak visuals for better blending and aesthetics.\n- Improved borderless mode transitions for rotation turns.",
+  "latestVersionCode": 31,
+  "latestVersionName": "1.2.5",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.2.5/app-debug.apk",
+  "releaseNotes": "- Complete UI/UX Polish: Enhanced Glassmorphism and Legendary Turn Turn effects.\n- Theme Consistency: Full adaptive Light and Dark mode synchronization across all screens.\n- Performance Optimization: Centralized haptics, permissions, and background processing.\n- Bug Fixes: Improved shared element transitions and standardized date/time parsing.",
   "isForceUpdate": false
 }

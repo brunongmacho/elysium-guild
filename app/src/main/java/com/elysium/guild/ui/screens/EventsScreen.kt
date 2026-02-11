@@ -126,7 +126,7 @@ fun EventsScreen(
                     Box(modifier = Modifier.weight(1f)) {
                         when {
                             uiState.isLoading && uiState.events.isEmpty() -> {
-                                LoadingIndicator()
+                                EventShimmerList()
                             }
                             
                             uiState.error != null && uiState.events.isEmpty() -> {

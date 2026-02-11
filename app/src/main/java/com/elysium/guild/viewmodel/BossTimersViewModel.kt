@@ -1,12 +1,16 @@
 package com.elysium.guild.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.elysium.guild.models.*
 import com.elysium.guild.repository.BossTimersRepository
+import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.NotificationHelper
 import com.elysium.guild.utils.PreferenceManager
+import com.elysium.guild.utils.ErrorUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -20,12 +24,15 @@ import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class BossTimersViewModel @Inject constructor(
     private val repository: BossTimersRepository,
     private val preferenceManager: PreferenceManager,
-    private val notificationHelper: NotificationHelper
+    private val notificationHelper: NotificationHelper,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(BossTimersUiState(
@@ -71,7 +78,8 @@ class BossTimersViewModel @Inject constructor(
             val refreshKey = "${boss.bossName}_${boss.nextSpawnTime}"
 
             when {
-                diffMs in 1799000..1801000 && !refreshedBossIds.contains("${refreshKey}_30m") -> {
+                diffMs in (Constants.SPAWNING_SOON_THRESHOLD_MS - 1000)..Constants.SPAWNING_SOON_THRESHOLD_MS &&
+                        !refreshedBossIds.contains("${refreshKey}_30m") -> {
                     refreshedBossIds.add("${refreshKey}_30m")
                     refreshTimers(isBackground = true)
                 }
@@ -86,13 +94,11 @@ class BossTimersViewModel @Inject constructor(
     private fun startAutoRefresh() {
         viewModelScope.launch {
             while (true) {
-                val hasReadyBoss = _uiState.value.bosses.any { 
-                    it.status == "ready" || it.status == "overdue" || (it.timeRemaining ?: 1) <= 0 
-                }
+                val hasReadyBoss = _uiState.value.bosses.any { it.isReady() }
                 val nextDelay = if (hasReadyBoss) 30_000L else 300_000L
                 delay(nextDelay)
                 refreshTimers(isBackground = true)
-                if (refreshedBossIds.size > 100) refreshedBossIds.clear()
+                if (refreshedBossIds.size > 200) refreshedBossIds.clear()
             }
         }
     }
@@ -110,77 +116,92 @@ class BossTimersViewModel @Inject constructor(
             }
             
             try {
-                if (!isBackground && !isInitial) delay(500)
+                if (!isBackground && !isInitial) delay(300)
                 
-                withTimeout(10000) { // 10 seconds timeout
+                withTimeout(15000) {
                     val rawBosses = repository.getBossTimers()
-                    val bosses = recalculateTimeRemaining(rawBosses)
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isRefreshing = false,
-                        bosses = bosses,
-                        filteredBosses = applyFilter(
-                            bosses,
-                            _uiState.value.selectedFilter,
-                            _uiState.value.searchQuery,
-                            _uiState.value.onlyElysiumTurn
-                        )
-                    )
+                    updateBossData(rawBosses, isBackground)
                 }
-                // Emit true if this was a foreground/manual refresh, suggesting a scroll to top
-                _refreshEvents.tryEmit(!isBackground)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isRefreshing = false,
-                    error = e.message ?: "Failed to refresh timers"
+                    error = ErrorUtils.parseError(context, e)
                 )
             }
         }
     }
 
-    fun testNotification() {
-        notificationHelper.showBossNotification("Test Boss", 10)
-    }
-    
-    fun setFilter(filter: String) {
-        val currentBosses = _uiState.value.bosses
-        _uiState.value = _uiState.value.copy(
-            selectedFilter = filter,
-            filteredBosses = applyFilter(
-                currentBosses,
-                filter,
+    private suspend fun updateBossData(rawBosses: List<BossTimer>, isBackground: Boolean) {
+        val processedBosses = withContext(Dispatchers.Default) {
+            val bosses = recalculateTimeRemaining(rawBosses)
+            bosses to applyFilter(
+                bosses,
+                _uiState.value.selectedFilter,
                 _uiState.value.searchQuery,
                 _uiState.value.onlyElysiumTurn
             )
+        }
+
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            isRefreshing = false,
+            bosses = processedBosses.first,
+            filteredBosses = processedBosses.second
         )
+        _refreshEvents.tryEmit(!isBackground)
+    }
+
+    fun setFilter(filter: String) {
+        viewModelScope.launch {
+            val filtered = withContext(Dispatchers.Default) {
+                applyFilter(
+                    _uiState.value.bosses,
+                    filter,
+                    _uiState.value.searchQuery,
+                    _uiState.value.onlyElysiumTurn
+                )
+            }
+            _uiState.value = _uiState.value.copy(
+                selectedFilter = filter,
+                filteredBosses = filtered
+            )
+        }
     }
 
     fun onSearchQueryChanged(query: String) {
-        val currentBosses = _uiState.value.bosses
-        _uiState.value = _uiState.value.copy(
-            searchQuery = query,
-            filteredBosses = applyFilter(
-                currentBosses,
-                _uiState.value.selectedFilter,
-                query,
-                _uiState.value.onlyElysiumTurn
+        viewModelScope.launch {
+            val filtered = withContext(Dispatchers.Default) {
+                applyFilter(
+                    _uiState.value.bosses,
+                    _uiState.value.selectedFilter,
+                    query,
+                    _uiState.value.onlyElysiumTurn
+                )
+            }
+            _uiState.value = _uiState.value.copy(
+                searchQuery = query,
+                filteredBosses = filtered
             )
-        )
+        }
     }
 
     fun toggleElysiumTurnFilter() {
-        val next = !_uiState.value.onlyElysiumTurn
-        val currentBosses = _uiState.value.bosses
-        _uiState.value = _uiState.value.copy(
-            onlyElysiumTurn = next,
-            filteredBosses = applyFilter(
-                currentBosses,
-                _uiState.value.selectedFilter,
-                _uiState.value.searchQuery,
-                next
+        viewModelScope.launch {
+            val next = !_uiState.value.onlyElysiumTurn
+            val filtered = withContext(Dispatchers.Default) {
+                applyFilter(
+                    _uiState.value.bosses,
+                    _uiState.value.selectedFilter,
+                    _uiState.value.searchQuery,
+                    next
+                )
+            }
+            _uiState.value = _uiState.value.copy(
+                onlyElysiumTurn = next,
+                filteredBosses = filtered
             )
-        )
+        }
     }
 
     private fun recalculateTimeRemaining(bosses: List<BossTimer>): List<BossTimer> {
@@ -190,13 +211,13 @@ class BossTimersViewModel @Inject constructor(
                 try { Instant.parse(it) } catch (e: Exception) { null }
             }
             val newTimeRemaining = if (nextSpawn != null) (nextSpawn - now).inWholeMilliseconds else boss.timeRemaining
-            val updatedStatus = if (newTimeRemaining != null) {
-                when {
-                    newTimeRemaining <= 0 -> "ready"
-                    newTimeRemaining <= 30 * 60 * 1000L -> "soon"
-                    else -> "tracking"
-                }
-            } else boss.status
+
+            val updatedStatus = when {
+                (newTimeRemaining ?: 1L) <= 0L -> Constants.STATUS_READY
+                (newTimeRemaining ?: Long.MAX_VALUE) <= Constants.SPAWNING_SOON_THRESHOLD_MS -> Constants.STATUS_SOON
+                else -> Constants.STATUS_TRACKING
+            }
+
             boss.copy(timeRemaining = newTimeRemaining, status = updatedStatus)
         }
     }
@@ -207,28 +228,22 @@ class BossTimersViewModel @Inject constructor(
         searchQuery: String,
         onlyElysiumTurn: Boolean
     ): List<BossTimer> {
-        val thirtyMinutesMs = 30 * 60 * 1000L
-
-        var result = when (filter) {
-            "All" -> bosses
-            "Ready" -> bosses.filter { it.status == "ready" || it.status == "overdue" || (it.timeRemaining ?: 1) <= 0 }
-            "Soon" -> bosses.filter { 
-                val isSpawned = it.status == "ready" || it.status == "overdue" || (it.timeRemaining ?: 1) <= 0
-                !isSpawned && (it.status == "soon" || (it.timeRemaining != null && it.timeRemaining <= thirtyMinutesMs))
-            }
-            "Tracking" -> bosses.filter { 
-                val isSpawned = it.status == "ready" || it.status == "overdue" || (it.timeRemaining ?: 1) <= 0
-                val isSoon = it.status == "soon" || (it.timeRemaining != null && it.timeRemaining <= thirtyMinutesMs)
-                !isSpawned && !isSoon
-            }
-            else -> bosses
-        }
+        var result = bosses
 
         if (onlyElysiumTurn) {
             result = result.filter { it.rotation?.isOurTurn == true }
         }
 
-        return if (searchQuery.isBlank()) result else result.filter { it.bossName.contains(searchQuery, ignoreCase = true) }
+        if (searchQuery.isNotBlank()) {
+            result = result.filter { it.bossName.contains(searchQuery, ignoreCase = true) }
+        }
+
+        return when (filter) {
+            "Ready" -> result.filter { it.isReady() }
+            "Soon" -> result.filter { it.isSoon() }
+            "Tracking" -> result.filter { it.isTracking() }
+            else -> result
+        }
     }
 }
 

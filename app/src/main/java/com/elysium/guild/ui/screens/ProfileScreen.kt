@@ -1,16 +1,8 @@
 package com.elysium.guild.ui.screens
 
-import android.app.AlarmManager
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.net.Uri
-import android.os.Build
-import android.os.PowerManager
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -38,21 +30,23 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import com.elysium.guild.R
 import com.elysium.guild.ui.components.*
 import com.elysium.guild.ui.theme.ElysiumGold
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
+import com.elysium.guild.utils.PermissionUtils
+import com.elysium.guild.utils.HapticUtils
 import com.elysium.guild.viewmodel.ProfileViewModel
 import com.elysium.guild.viewmodel.UpdateState
 import kotlinx.coroutines.delay
@@ -66,7 +60,7 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val isDark = isSystemInDarkTheme()
+    val isDark = isAppInDarkTheme()
     val scrollState = rememberScrollState()
     
     val scrollOffset = remember { derivedStateOf { scrollState.value.toFloat() } }
@@ -102,10 +96,10 @@ fun ProfileScreen(
 
     val updateState by viewModel.updateState.collectAsState()
 
-    var areNotificationsEnabled by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
-    var canScheduleExactAlarms by remember { mutableStateOf(canScheduleExactAlarms(context)) }
-    var canDrawOverlays by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
-    var isIgnoringBatteryOptimizations by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
+    var areNotificationsEnabled by remember { mutableStateOf(PermissionUtils.areNotificationsEnabled(context)) }
+    var canScheduleExactAlarms by remember { mutableStateOf(PermissionUtils.canScheduleExactAlarms(context)) }
+    var canDrawOverlays by remember { mutableStateOf(PermissionUtils.canDrawOverlays(context)) }
+    var isIgnoringBatteryOptimizations by remember { mutableStateOf(PermissionUtils.isIgnoringBatteryOptimizations(context)) }
 
     val allPermissionsEnabled = areNotificationsEnabled && canScheduleExactAlarms && canDrawOverlays && isIgnoringBatteryOptimizations
 
@@ -124,10 +118,10 @@ fun ProfileScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                areNotificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
-                canScheduleExactAlarms = canScheduleExactAlarms(context)
-                canDrawOverlays = Settings.canDrawOverlays(context)
-                isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations(context)
+                areNotificationsEnabled = PermissionUtils.areNotificationsEnabled(context)
+                canScheduleExactAlarms = PermissionUtils.canScheduleExactAlarms(context)
+                canDrawOverlays = PermissionUtils.canDrawOverlays(context)
+                isIgnoringBatteryOptimizations = PermissionUtils.isIgnoringBatteryOptimizations(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -139,39 +133,6 @@ fun ProfileScreen(
             delay(3000)
             showSaveSuccess = false
         }
-    }
-
-    when (val state = updateState) {
-        is UpdateState.UpdateAvailable -> {
-            AlertDialog(
-                onDismissRequest = { viewModel.resetUpdateState() },
-                title = { Text("Update Available") },
-                text = {
-                    Column {
-                        Text("A new version (${state.updateInfo.latestVersionName}) is available.")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(state.updateInfo.releaseNotes, style = MaterialTheme.typography.bodySmall)
-                    }
-                },
-                confirmButton = {
-                    Button(onClick = { viewModel.downloadAndInstall(state.updateInfo) }) {
-                        Text("Update Now")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.resetUpdateState() }) {
-                        Text("Later")
-                    }
-                }
-            )
-        }
-        UpdateState.UpToDate -> {
-            LaunchedEffect(Unit) {
-                Toast.makeText(context, "App is up to date", Toast.LENGTH_SHORT).show()
-                viewModel.resetUpdateState()
-            }
-        }
-        else -> {}
     }
 
     Surface(
@@ -191,11 +152,11 @@ fun ProfileScreen(
                     
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = Constants.TITLE_SETTINGS,
+                            text = stringResource(R.string.settings),
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 letterSpacing = 2.sp,
                                 shadow = Shadow(
-                                    color = ElysiumGold.copy(alpha = 0.5f),
+                                    color = if (isDark) ElysiumGold.copy(alpha = 0.5f) else Color.Transparent,
                                     blurRadius = 15f
                                 )
                             ),
@@ -219,7 +180,7 @@ fun ProfileScreen(
                         exit = shrinkVertically() + fadeOut()
                     ) {
                         SettingsCard(
-                            title = "System Health",
+                            title = stringResource(R.string.system_health),
                             icon = Icons.Default.HealthAndSafety
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -229,7 +190,7 @@ fun ProfileScreen(
                                         statusText = "Denied (Tap to fix)",
                                         isActive = false,
                                         icon = Icons.Default.NotificationsOff,
-                                        onClick = { openNotificationSettings(context) }
+                                        onClick = { PermissionUtils.openNotificationSettings(context) }
                                     )
                                 }
                                 if (!canScheduleExactAlarms) {
@@ -238,7 +199,7 @@ fun ProfileScreen(
                                         statusText = "Delayed (Tap to fix)",
                                         isActive = false,
                                         icon = Icons.Default.TimerOff,
-                                        onClick = { openAlarmSettings(context) }
+                                        onClick = { PermissionUtils.openAlarmSettings(context) }
                                     )
                                 }
                                 if (!canDrawOverlays) {
@@ -247,7 +208,7 @@ fun ProfileScreen(
                                         statusText = "Required (Tap to fix)",
                                         isActive = false,
                                         icon = Icons.Default.LayersClear,
-                                        onClick = { openOverlaySettings(context) }
+                                        onClick = { PermissionUtils.openOverlaySettings(context) }
                                     )
                                 }
                                 if (!isIgnoringBatteryOptimizations) {
@@ -256,27 +217,15 @@ fun ProfileScreen(
                                         statusText = "Restricted (Tap to fix)",
                                         isActive = false,
                                         icon = Icons.Default.BatteryAlert,
-                                        onClick = { requestIgnoreBatteryOptimizations(context) }
+                                        onClick = { PermissionUtils.requestIgnoreBatteryOptimizations(context) }
                                     )
                                 }
                             }
                         }
                     }
 
-                    if (!allPermissionsEnabled) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Some features require battery optimizations to be disabled to ensure notifications are delivered on time.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
                     SettingsCard(
-                        title = "App Update",
+                        title = stringResource(R.string.app_update),
                         icon = Icons.Default.SystemUpdate
                     ) {
                         Column {
@@ -286,7 +235,12 @@ fun ProfileScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = "Software Update", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        text = "Software Update",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
                                     Text(
                                         text = when (updateState) {
                                             UpdateState.Checking -> "Checking for updates..."
@@ -299,10 +253,13 @@ fun ProfileScreen(
                                 }
                                 
                                 Surface(
-                                    onClick = { viewModel.checkForUpdates() },
+                                    onClick = { 
+                                        HapticUtils.performHapticFeedback(context, duration = 10)
+                                        viewModel.checkForUpdates() 
+                                    },
                                     enabled = updateState !is UpdateState.Checking && updateState !is UpdateState.Downloading,
                                     shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.2f else if (updateState is UpdateState.Checking || updateState is UpdateState.Downloading) 0.05f else 0.1f),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.2f else 0.1f),
                                     border = BorderStroke(
                                         width = 1.dp,
                                         brush = Brush.linearGradient(
@@ -355,79 +312,99 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     SettingsCard(
-                        title = "Alert and interaction",
+                        title = stringResource(R.string.alert_interaction),
                         icon = Icons.Default.Notifications
                     ) {
                         Column {
                             NotificationToggle(
-                                title = "Boss Spawn Alerts",
+                                title = stringResource(R.string.boss_spawn_alerts),
                                 description = "Precise 10m warning for world bosses",
                                 checked = pendingBossNotif,
-                                onCheckedChange = { pendingBossNotif = it },
+                                onCheckedChange = { 
+                                    pendingBossNotif = it 
+                                    HapticUtils.performHapticFeedback(context, duration = 10)
+                                },
                                 icon = Icons.Default.Timer,
-                                iconGradient = listOf(Color(0xFF10B981), Color(0xFF059669))
+                                iconGradient = listOf(Color(0xFF10B981), Color(0xFF059669)),
+                                isModified = pendingBossNotif != savedBossNotif
                             )
                             
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
                             
                             NotificationToggle(
-                                title = "Event Reminders",
+                                title = stringResource(R.string.event_reminders),
                                 description = "Precise 10m warning for guild activities",
                                 checked = pendingEventNotif,
-                                onCheckedChange = { pendingEventNotif = it },
+                                onCheckedChange = { 
+                                    pendingEventNotif = it 
+                                    HapticUtils.performHapticFeedback(context, duration = 10)
+                                },
                                 icon = Icons.Default.Event,
-                                iconGradient = listOf(Color(0xFF6366F1), Color(0xFF4F46E5))
+                                iconGradient = listOf(Color(0xFF6366F1), Color(0xFF4F46E5)),
+                                isModified = pendingEventNotif != savedEventNotif
                             )
 
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
 
                             NotificationToggle(
                                 title = "Floating Boss Timer",
                                 description = "Show a floating bubble over other apps",
                                 checked = pendingBubbleEnabled,
                                 onCheckedChange = { 
-                                    if (it && !canDrawOverlays) {
+                                    HapticUtils.performHapticFeedback(context, duration = 10)
+                                    if (it && !PermissionUtils.canDrawOverlays(context)) {
                                         pendingBubbleEnabled = false
-                                        openOverlaySettings(context)
+                                        PermissionUtils.openOverlaySettings(context)
                                     } else {
                                         pendingBubbleEnabled = it
                                     }
                                 },
                                 icon = Icons.Default.AdsClick,
-                                iconGradient = listOf(Color(0xFFF59E0B), Color(0xFFD97706))
+                                iconGradient = listOf(Color(0xFFF59E0B), Color(0xFFD97706)),
+                                isModified = pendingBubbleEnabled != savedBubbleEnabled
                             )
 
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
 
                             NotificationToggle(
-                                title = "Vibrate Only",
+                                title = stringResource(R.string.notification_vibration),
                                 description = "Silent alerts with haptic feedback",
                                 checked = pendingVibrateOnly,
-                                onCheckedChange = { pendingVibrateOnly = it },
+                                onCheckedChange = { 
+                                    pendingVibrateOnly = it 
+                                    HapticUtils.performHapticFeedback(context, duration = 10)
+                                },
                                 icon = Icons.Default.NotificationsPaused,
-                                iconGradient = listOf(Color(0xFF94A3B8), Color(0xFF64748B))
+                                iconGradient = listOf(Color(0xFF94A3B8), Color(0xFF64748B)),
+                                isModified = pendingVibrateOnly != vibrateOnly
                             )
 
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
 
                             NotificationToggle(
                                 title = "Haptic Feedback",
                                 description = "Vibrate on status changes and refreshes",
                                 checked = pendingHapticEnabled,
-                                onCheckedChange = { pendingHapticEnabled = it },
+                                onCheckedChange = { 
+                                    pendingHapticEnabled = it 
+                                    HapticUtils.performHapticFeedback(context, duration = 10)
+                                },
                                 icon = Icons.Default.Vibration,
-                                iconGradient = listOf(Color(0xFFEC4899), Color(0xFFDB2777))
+                                iconGradient = listOf(Color(0xFFEC4899), Color(0xFFDB2777)),
+                                isModified = pendingHapticEnabled != hapticEnabled
                             )
 
                             if (!pendingVibrateOnly) {
-                                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
 
                                 SoundSelectionItem(
                                     selectedSound = pendingSound,
                                     onSoundSelected = { 
                                         pendingSound = it
                                         playSoundPreview(context, it)
-                                    }
+                                        HapticUtils.performHapticFeedback(context, duration = 10)
+                                    },
+                                    isModified = pendingSound != savedSound
                                 )
                             }
                         }
@@ -436,7 +413,7 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     SettingsCard(
-                        title = "Appearance and Time",
+                        title = stringResource(R.string.appearance_time),
                         icon = Icons.Default.Palette
                     ) {
                         Column {
@@ -447,36 +424,52 @@ fun ProfileScreen(
                                 ThemePreviewCard(
                                     label = "Light",
                                     isSelected = pendingThemeMode == Constants.THEME_LIGHT,
-                                    onClick = { pendingThemeMode = Constants.THEME_LIGHT },
+                                    onClick = { 
+                                        pendingThemeMode = Constants.THEME_LIGHT 
+                                        HapticUtils.performHapticFeedback(context, duration = 10)
+                                    },
                                     isDark = false,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    isModified = pendingThemeMode == Constants.THEME_LIGHT && themeMode != Constants.THEME_LIGHT
                                 )
                                 ThemePreviewCard(
                                     label = "Dark",
                                     isSelected = pendingThemeMode == Constants.THEME_DARK,
-                                    onClick = { pendingThemeMode = Constants.THEME_DARK },
+                                    onClick = { 
+                                        pendingThemeMode = Constants.THEME_DARK 
+                                        HapticUtils.performHapticFeedback(context, duration = 10)
+                                    },
                                     isDark = true,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    isModified = pendingThemeMode == Constants.THEME_DARK && themeMode != Constants.THEME_DARK
                                 )
                                 ThemePreviewCard(
                                     label = "System",
                                     isSelected = pendingThemeMode == Constants.THEME_SYSTEM,
-                                    onClick = { pendingThemeMode = Constants.THEME_SYSTEM },
+                                    onClick = { 
+                                        pendingThemeMode = Constants.THEME_SYSTEM 
+                                        HapticUtils.performHapticFeedback(context, duration = 10)
+                                    },
                                     isDark = isDark,
                                     isSystem = true,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    isModified = pendingThemeMode == Constants.THEME_SYSTEM && themeMode != Constants.THEME_SYSTEM
                                 )
                             }
 
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
 
                             NotificationToggle(
                                 title = "Use Local Timezone",
                                 description = "Show times in your device's timezone",
                                 checked = pendingLocalTimezone,
-                                onCheckedChange = { pendingLocalTimezone = it },
+                                onCheckedChange = { 
+                                    pendingLocalTimezone = it 
+                                    HapticUtils.performHapticFeedback(context, duration = 10)
+                                },
                                 icon = Icons.Default.Language,
-                                iconGradient = listOf(Color(0xFF06B6D4), Color(0xFF0891B2))
+                                iconGradient = listOf(Color(0xFF06B6D4), Color(0xFF0891B2)),
+                                isModified = pendingLocalTimezone != savedLocalTimezone
                             )
                         }
                     }
@@ -484,14 +477,17 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     SettingsCard(
-                        title = "Help and Onboarding",
+                        title = stringResource(R.string.help_onboarding),
                         icon = Icons.AutoMirrored.Filled.HelpCenter
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable { preferenceManager.resetFirstRun() }
+                                .clickable { 
+                                    HapticUtils.performHapticFeedback(context, duration = 10)
+                                    preferenceManager.resetFirstRun() 
+                                }
                                 .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -506,8 +502,17 @@ fun ProfileScreen(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text(text = "Rerun Tutorial", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                Text(text = "Revisit the initial setup and permissions guide", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    text = "Rerun Tutorial",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Revisit the initial setup and permissions guide",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -515,14 +520,17 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     SettingsCard(
-                        title = "Guild Support",
+                        title = stringResource(R.string.guild_support),
                         icon = Icons.Default.Favorite
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable { showDonationSheet = true }
+                                .clickable { 
+                                    HapticUtils.performHapticFeedback(context, duration = 10)
+                                    showDonationSheet = true 
+                                }
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -539,8 +547,17 @@ fun ProfileScreen(
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
-                                    Text(text = "Donate to Guild", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                    Text(text = "Help us keep the servers running", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        text = "Donate to Guild",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Help us keep the servers running",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                             Icon(
@@ -600,6 +617,7 @@ fun ProfileScreen(
                         ) {
                             TextButton(
                                 onClick = {
+                                    HapticUtils.performHapticFeedback(context, duration = 20)
                                     pendingThemeMode = themeMode
                                     pendingHapticEnabled = hapticEnabled
                                     pendingVibrateOnly = vibrateOnly
@@ -614,13 +632,14 @@ fun ProfileScreen(
                             ) {
                                 Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Discard")
+                                Text(stringResource(R.string.discard_changes))
                             }
 
                             VerticalDivider(modifier = Modifier.padding(vertical = 20.dp), thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
 
                             TextButton(
                                 onClick = {
+                                    HapticUtils.performHapticFeedback(context, duration = 30)
                                     preferenceManager.setThemeMode(pendingThemeMode)
                                     preferenceManager.setHapticFeedbackEnabled(pendingHapticEnabled)
                                     preferenceManager.setVibrateOnlyEnabled(pendingVibrateOnly)
@@ -637,7 +656,7 @@ fun ProfileScreen(
                             ) {
                                 Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Save Settings", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.save_settings), fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -661,7 +680,7 @@ fun ProfileScreen(
                         ) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Constants.COLOR_SUCCESS, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text(text = "Configuration Saved", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text(text = stringResource(R.string.configuration_saved), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
@@ -683,7 +702,7 @@ fun ProfileScreen(
                             ) {
                                 Box(modifier = Modifier.size(40.dp, 4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)))
                                 Spacer(modifier = Modifier.height(24.dp))
-                                Text(text = Constants.DONATION_TITLE, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                Text(text = Constants.DONATION_TITLE, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(text = Constants.DONATION_DESC, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.height(24.dp))
@@ -698,7 +717,10 @@ fun ProfileScreen(
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(24.dp))
-                                Button(onClick = { showDonationSheet = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                                Button(onClick = { 
+                                    HapticUtils.performHapticFeedback(context, duration = 10)
+                                    showDonationSheet = false 
+                                }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                                     Text("Done", fontWeight = FontWeight.Bold)
                                 }
                             }
@@ -724,63 +746,4 @@ private fun playSoundPreview(context: Context, soundName: String) {
     } catch (e: Exception) {
         e.printStackTrace()
     }
-}
-
-private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
-    val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-    return powerManager.isIgnoringBatteryOptimizations(context.packageName)
-}
-
-private fun canScheduleExactAlarms(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmManager.canScheduleExactAlarms()
-    } else true
-}
-
-private fun requestIgnoreBatteryOptimizations(context: Context) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = "package:${context.packageName}".toUri()
-        }
-        try {
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            val settingsIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-            context.startActivity(settingsIntent)
-        }
-    }
-}
-
-private fun openAlarmSettings(context: Context) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-            data = "package:${context.packageName}".toUri()
-        }
-        context.startActivity(intent)
-    }
-}
-
-private fun openOverlaySettings(context: Context) {
-    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-        data = "package:${context.packageName}".toUri()
-    }
-    context.startActivity(intent)
-}
-
-private fun openNotificationSettings(context: Context) {
-    val intent = Intent().apply {
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
-                action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-            }
-            else -> {
-                action = "android.settings.APP_NOTIFICATION_SETTINGS"
-                putExtra("app_package", context.packageName)
-                putExtra("app_uid", context.applicationInfo.uid)
-            }
-        }
-    }
-    context.startActivity(intent)
 }

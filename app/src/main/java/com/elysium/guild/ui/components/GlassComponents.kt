@@ -7,7 +7,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -23,12 +22,18 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.elysium.guild.ui.theme.ElysiumGold
 import kotlin.math.*
+
+/**
+ * Helper to determine if the current theme is Dark based on ColorScheme luminance
+ */
+@Composable
+fun isAppInDarkTheme(): Boolean = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
 @Composable
 fun ElysiumGlassCard(
@@ -41,7 +46,7 @@ fun ElysiumGlassCard(
     onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = isAppInDarkTheme()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -65,6 +70,50 @@ fun ElysiumGlassCard(
         label = "GlowColorAnimation"
     )
 
+    // FIX: Reactive background for Light Mode Turn Turn that changes with statusColor
+    val cardBgColor = if (isDark) {
+        if (showLegendaryEffect) Color(0xFF0A0C14).copy(alpha = 0.95f)
+        else MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+    } else {
+        if (showLegendaryEffect) {
+            // Create a background that is tinted by the status (Ready/Soon/Tracking)
+            // Starts with a warm base and adds a 15% overlay of the status color
+            val baseColor = Color(0xFFFFF8E1) 
+            statusColor.copy(alpha = 0.12f).compositeOver(baseColor)
+        } else {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        }
+    }
+
+    val contentColorOverride = if (showLegendaryEffect) {
+        if (isDark) Color.White else Color(0xFF211A00) // High contrast text
+    } else {
+        Color.Unspecified
+    }
+
+    // Border now strictly follows statusColor for consistency
+    val borderBrush = if (showLegendaryEffect) {
+        val baseColor = if (statusColor != Color.Transparent) statusColor else (if (isDark) ElysiumGold else Color(0xFFFFA000))
+        Brush.linearGradient(
+            listOf(baseColor, baseColor.copy(alpha = 0.4f), baseColor)
+        )
+    } else {
+        Brush.linearGradient(
+            colors = if (animatedGlowColor != Color.Transparent) {
+                listOf(
+                    animatedGlowColor.copy(alpha = pulseAlpha),
+                    animatedGlowColor.copy(alpha = 0.1f),
+                    animatedGlowColor.copy(alpha = pulseAlpha)
+                )
+            } else {
+                listOf(
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.2f else 0.3f),
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.1f)
+                )
+            }
+        )
+    }
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -72,82 +121,69 @@ fun ElysiumGlassCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .legendaryOrbEffect(enabled = showLegendaryEffect, glowColor = animatedGlowColor, radius = cornerRadius)
+            .legendaryOrbEffect(enabled = showLegendaryEffect, glowColor = if (statusColor != Color.Transparent) statusColor else animatedGlowColor, radius = cornerRadius)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
                 } else Modifier
             )
-            .then(
-                if (showLegendaryEffect) Modifier else Modifier.border(
-                    width = if (isDark) 1.dp else 1.5.dp,
-                    brush = Brush.linearGradient(
-                        colors = if (animatedGlowColor != Color.Transparent) {
-                            listOf(
-                                animatedGlowColor.copy(alpha = pulseAlpha),
-                                animatedGlowColor.copy(alpha = 0.1f),
-                                animatedGlowColor.copy(alpha = pulseAlpha)
-                            )
-                        } else {
-                            listOf(
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.2f else 0.3f),
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.05f else 0.1f)
-                            )
-                        }
-                    ),
-                    shape = RoundedCornerShape(cornerRadius)
-                )
+            .border(
+                width = if (showLegendaryEffect) 1.2.dp else 1.dp,
+                brush = borderBrush,
+                shape = RoundedCornerShape(cornerRadius)
             ),
         shape = RoundedCornerShape(cornerRadius),
-        color = if (showLegendaryEffect) Color(0xFF0A0C14).copy(alpha = 0.9f)
-                else if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-                else MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-        tonalElevation = if (showLegendaryEffect) 0.dp else if (isDark) 8.dp else 2.dp,
-        shadowElevation = if (showLegendaryEffect) 0.dp else if (isDark) 0.dp else 8.dp
+        color = cardBgColor,
+        contentColor = contentColorOverride,
+        tonalElevation = if (showLegendaryEffect) (if (isDark) 0.dp else 4.dp) else if (isDark) 8.dp else 2.dp,
+        shadowElevation = if (showLegendaryEffect) (if (isDark) 0.dp else 12.dp) else if (isDark) 0.dp else 8.dp
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            if (statusColor != Color.Transparent && !showLegendaryEffect) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    statusColor.copy(alpha = if (isDark) 0.15f else 0.12f),
-                                    Color.Transparent
+        CompositionLocalProvider(
+            LocalContentColor provides if (contentColorOverride != Color.Unspecified) contentColorOverride else LocalContentColor.current
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                if (statusColor != Color.Transparent && !showLegendaryEffect) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        statusColor.copy(alpha = if (isDark) 0.15f else 0.12f),
+                                        Color.Transparent
+                                    )
                                 )
                             )
-                        )
-                )
-            }
+                    )
+                }
 
-            if (animatedGlowColor != Color.Transparent) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    animatedGlowColor.copy(alpha = if (isDark) 0.1f * pulseAlpha else 0.05f),
-                                    Color.Transparent
-                                ),
-                                radius = 2500f
+                if (animatedGlowColor != Color.Transparent) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        animatedGlowColor.copy(alpha = if (isDark) 0.1f * pulseAlpha else 0.1f),
+                                        Color.Transparent
+                                    ),
+                                    radius = 2500f
+                                )
                             )
-                        )
+                    )
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    content = content
                 )
             }
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                content = content
-            )
         }
     }
 }
 
 private fun Modifier.legendaryOrbEffect(enabled: Boolean, glowColor: Color, radius: Dp) = if (!enabled) this else composed {
-    val infiniteTransition = rememberInfiniteTransition(label = "OrbRotation")
-    val progress by infiniteTransition.animateFloat(
+    val progress by rememberInfiniteTransition(label = "OrbRotation").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -157,18 +193,18 @@ private fun Modifier.legendaryOrbEffect(enabled: Boolean, glowColor: Color, radi
         label = "OrbProgress"
     )
 
+    val isDark = isAppInDarkTheme()
+
     this.drawWithContent {
         drawContent()
-
         val progress1 = progress
         val progress2 = (progress + 0.5f).let { if (it > 1f) it - 1f else it }
-
-        drawPremiumLightPath(progress = progress1, glowColor = glowColor, cornerRadius = radius.toPx())
-        drawPremiumLightPath(progress = progress2, glowColor = glowColor, cornerRadius = radius.toPx())
+        drawPremiumLightPath(progress = progress1, glowColor = glowColor, cornerRadius = radius.toPx(), isDark = isDark)
+        drawPremiumLightPath(progress = progress2, glowColor = glowColor, cornerRadius = radius.toPx(), isDark = isDark)
     }
 }
 
-private fun DrawScope.drawPremiumLightPath(progress: Float, glowColor: Color, cornerRadius: Float) {
+private fun DrawScope.drawPremiumLightPath(progress: Float, glowColor: Color, cornerRadius: Float, isDark: Boolean) {
     val width = size.width
     val height = size.height
     if (width == 0f || height == 0f) return
@@ -208,37 +244,31 @@ private fun DrawScope.drawPremiumLightPath(progress: Float, glowColor: Color, co
     val centerPos = progress * perimeter
     val tailLength = perimeter * 0.45f
     val segments = 120 
-    val maxStrokeWidth = 3.5.dp.toPx() 
+    val maxStrokeWidth = 3.dp.toPx() 
+    val blendMode = if (isDark) BlendMode.Screen else BlendMode.Plus
 
     for (i in 0 until segments) {
         val normalizedI = i.toFloat() / segments
-        // Spindle shape curve: 0 at start, 1 at mid, 0 at end
         val shapeRatio = sin(normalizedI * PI.toFloat())
-        
-        // Center the spindle on the centerPos
         val pos = centerPos + (normalizedI - 0.5f) * tailLength
         val p1 = getPointOnPath(pos)
         val p2 = getPointOnPath(pos + (tailLength / segments))
-        
-        // Gaussian-like highlight centered at the middle
         val highlightIntensity = exp(-((normalizedI - 0.5f).pow(2)) / (2 * 0.12f.pow(2)))
 
-        // Atmospheric Glow
         drawLine(
-            color = glowColor.copy(alpha = shapeRatio.pow(3f) * 0.12f),
+            color = glowColor.copy(alpha = shapeRatio.pow(3f) * 0.15f),
             start = p1,
             end = p2,
             strokeWidth = (maxStrokeWidth * 5f) * shapeRatio,
             cap = StrokeCap.Round,
-            blendMode = BlendMode.Screen
+            blendMode = blendMode
         )
 
-        // Primary Color Core with integrated mid-highlight
         val segmentColor = Color(
             red = min(1f, glowColor.red + (1f - glowColor.red) * highlightIntensity * 0.4f),
             green = min(1f, glowColor.green + (1f - glowColor.green) * highlightIntensity * 0.4f),
             blue = min(1f, glowColor.blue + (1f - glowColor.blue) * highlightIntensity * 0.4f),
-            alpha = shapeRatio * (0.5f + 0.3f * highlightIntensity)
+            alpha = shapeRatio * (0.6f + 0.3f * highlightIntensity)
         )
 
         drawLine(
@@ -247,7 +277,7 @@ private fun DrawScope.drawPremiumLightPath(progress: Float, glowColor: Color, co
             end = p2,
             strokeWidth = maxStrokeWidth * shapeRatio,
             cap = StrokeCap.Round,
-            blendMode = BlendMode.Screen
+            blendMode = blendMode
         )
     }
 }
