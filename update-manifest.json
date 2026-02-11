@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 31,
-  "latestVersionName": "1.2.5",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v1.2.5/app-debug.apk",
-  "releaseNotes": "- Complete UI/UX Polish: Enhanced Glassmorphism and Legendary Turn Turn effects.\n- Theme Consistency: Full adaptive Light and Dark mode synchronization across all screens.\n- Performance Optimization: Centralized haptics, permissions, and background processing.\n- Bug Fixes: Improved shared element transitions and standardized date/time parsing.",
+  "latestVersionCode": 32,
+  "latestVersionName": "2.0.0",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v2.0.0/app-debug.apk",
+  "releaseNotes": "- Major Release: Introduced Multi-Relic Calculator.\n- Concurrent Tracking: Manage costs for all four relics simultaneously.\n- Selective Inclusion: Toggle specific relics for precise Temporal PC estimations.\n- Auto-Validation: Smarter level inputs with range correction and clamping.\n- Visual Overhaul: Fully themed color-coded inputs and high-contrast light mode support.",
   "isForceUpdate": false
 }

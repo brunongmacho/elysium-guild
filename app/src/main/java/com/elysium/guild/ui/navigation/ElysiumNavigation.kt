@@ -110,6 +110,9 @@ fun ElysiumNavigation(
                             animatedVisibilityScope = this@composable
                         )
                     }
+                    composable(Screen.Relic.route) {
+                        RelicScreen()
+                    }
                     composable(Screen.Leaderboard.route) {
                         LeaderboardScreen(navController)
                     }
@@ -179,6 +182,11 @@ private val bottomNavItems = listOf(
         icon = Icons.Filled.Event
     ),
     BottomNavItem(
+        route = Screen.Relic.route,
+        label = "Relic",
+        icon = Icons.Filled.AutoFixHigh
+    ),
+    BottomNavItem(
         route = Screen.Leaderboard.route,
         label = "Ranks",
         icon = Icons.Filled.Leaderboard
@@ -193,6 +201,7 @@ private val bottomNavItems = listOf(
 sealed class Screen(val route: String) {
     object BossTimers : Screen("boss_timers")
     object Events : Screen("events")
+    object Relic : Screen("relic")
     object Leaderboard : Screen("leaderboard")
     object Settings : Screen("settings")
 }

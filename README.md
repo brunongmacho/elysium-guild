@@ -1,6 +1,6 @@
 # ⚔️ Elysium Guild Mobile App
 
-[![Version](https://img.shields.io/badge/Version-1.2.4-gold.svg?style=for-the-badge)](https://github.com/brunongmacho/elysium-guild/releases)
+[![Version](https://img.shields.io/badge/Version-2.0.0-gold.svg?style=for-the-badge)](https://github.com/brunongmacho/elysium-guild/releases)
 [![Platform](https://img.shields.io/badge/Platform-Android_8.0+-000000.svg?style=for-the-badge&logo=android)](https://developer.android.com)
 [![Engine](https://img.shields.io/badge/UI-Jetpack_Compose-4285F4.svg?style=for-the-badge&logo=jetpackcompose)](https://developer.android.com/compose)
 
@@ -23,17 +23,23 @@ The app features a custom-built **Glassmorphism Design System**, utilizing:
     *   *Features*: Drag-to-close zone, adaptive orientation (Landscape/Portrait), and auto-hiding during active app use.
 *   **Smart Statuses**: Automatic categorization into `READY`, `SOON` (within 30m), and `TRACKING`.
 
-### 2. Guild Events & Schedule
+### 2. Multi-Relic Calculator (New in v2.0)
+*   **Concurrent Tracking**: Manage and estimate costs for all four relics (*Origin, Barrier, Crystal, Magic Storm*) simultaneously.
+*   **Temporal PC Estimator**: Accurate cost progression logic for standard and specialized relics.
+*   **Selective Inclusion**: Toggle specific relics to calculate exactly what you need for your next session.
+*   **Auto-Validation**: Intelligent level clamping (1-100) and range correction.
+
+### 3. Guild Events & Schedule
 *   **Automated Sync**: Fetches the latest guild activities directly from the Elysium API.
 *   **Alarm Integration**: One-tap scheduling of Exact Alarms (Android 14 compliant) to notify you 10 minutes before an event starts.
 *   **Glassy Visuals**: Shared component architecture ensures events look as premium as boss cards.
 
-### 3. Advanced Leaderboards
+### 4. Advanced Leaderboards
 *   **Multi-Metric Tracking**: Switch between `Attendance` and `Points` leaderboards.
 *   **Dynamic Podium**: Visual highlight for Top 3 performers with custom gold, silver, and bronze gradients.
 *   **Historical Data**: Filter attendance by Weekly, Monthly, or All-Time periods.
 
-### 4. System Health & Settings
+### 5. System Health & Settings
 *   **Permission Center**: Centralized management for Notifications, Overlay permissions, Exact Alarms, and Battery Optimization.
 *   **Theme Engine**: Instant switching between Light, Dark, and System modes.
 *   **Notification Customization**: Select from a library of custom alert sounds (e.g., *Terran Launch*).
@@ -59,7 +65,7 @@ com.elysium.guild/
 ├── di/                  # Hilt modules (Network, Database, Preference)
 ├── ui/
 │   ├── components/      # Glassy UI, Legendary Orbs, Custom SearchBars
-│   ├── screens/         # BossTimers, Leaderboard, Events, Profile, Onboarding
+│   ├── screens/         # BossTimers, Leaderboard, Events, Profile, Onboarding, Relic
 │   └── theme/           # Elysium Gold & Deep Sea color schemes
 ├── viewmodel/           # State management with StateFlow
 ├── repository/          # SSOT (Single Source of Truth) data management
@@ -84,8 +90,8 @@ The app uses a fully automated **GitHub Actions** CI/CD pipeline:
 2.  **Manifest Update**: Synchronize `update-manifest.json` at the root.
 3.  **Deploy**: 
     ```bash
-    git tag v1.2.4
-    git push origin v1.2.4
+    git tag v2.0.0
+    git push origin v2.0.0
     ```
 4.  **Result**: GitHub automatically builds the signed APK and attaches it to a new Release.
 
