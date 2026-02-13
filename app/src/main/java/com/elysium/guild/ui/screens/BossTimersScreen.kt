@@ -133,7 +133,7 @@ fun BossTimersScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = Constants.TITLE_BOSS_TIMERS,
+                                text = Constants.TITLE_BOSS_TIMERS.uppercase(),
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     letterSpacing = 2.sp,
                                     shadow = androidx.compose.ui.graphics.Shadow(
@@ -146,7 +146,7 @@ fun BossTimersScreen(
                                 textAlign = TextAlign.Center
                             )
                             Text(
-                                text = "REAL-TIME RAID TRACKER",
+                                text = Constants.SUBTITLE_BOSS_TIMERS.uppercase(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                 letterSpacing = 3.sp,

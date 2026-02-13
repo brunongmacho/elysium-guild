@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -38,6 +39,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.elysium.guild.R
 import com.elysium.guild.ui.components.DynamicElysiumBackground
 import com.elysium.guild.ui.components.ElysiumGlassCard
+import com.elysium.guild.ui.theme.ElysiumGold
 import com.elysium.guild.utils.Constants
 import com.elysium.guild.utils.PreferenceManager
 
@@ -102,16 +104,24 @@ fun OnboardingScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Welcome to Elysium",
-                    style = MaterialTheme.typography.headlineMedium,
+                    text = "Welcome to Elysium".uppercase(),
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        letterSpacing = 2.sp,
+                        shadow = Shadow(
+                            color = ElysiumGold.copy(alpha = 0.5f),
+                            blurRadius = 15f
+                        )
+                    ),
                     fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center
                 )
                 
                 Text(
-                    text = "Let's sync your device for the best guild experience",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "Let's sync your device for the best guild experience".uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    letterSpacing = 3.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )

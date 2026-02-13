@@ -10,8 +10,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +18,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -28,6 +25,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.elysium.guild.ui.components.*
 import com.elysium.guild.ui.screens.*
 import com.elysium.guild.utils.PreferenceManager
 
@@ -57,11 +55,26 @@ fun ElysiumNavigation(
 
                         NavigationBarItem(
                             icon = {
-                                Icon(
-                                    item.icon,
-                                    contentDescription = null,
-                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                )
+                                when (item.route) {
+                                    Screen.BossTimers.route -> {
+                                        BossTimerIcon(isSelected = isSelected)
+                                    }
+                                    Screen.Events.route -> {
+                                        EventCalendarIcon(isSelected = isSelected)
+                                    }
+                                    Screen.Relic.route -> {
+                                        RelicNavIcon(isSelected = isSelected)
+                                    }
+                                    Screen.Leaderboard.route -> {
+                                        LeaderboardIcon(isSelected = isSelected)
+                                    }
+                                    Screen.Settings.route -> {
+                                        SettingsIcon(isSelected = isSelected)
+                                    }
+                                    else -> {
+                                        // Fallback if needed
+                                    }
+                                }
                             },
                             label = {
                                 Text(
@@ -166,35 +179,29 @@ fun CustomElysiumNavigationBar(
 
 data class BottomNavItem(
     val route: String,
-    val label: String,
-    val icon: ImageVector
+    val label: String
 )
 
 private val bottomNavItems = listOf(
     BottomNavItem(
         route = Screen.BossTimers.route,
-        label = "Encounters",
-        icon = Icons.Filled.Timer
+        label = "Boss"
     ),
     BottomNavItem(
         route = Screen.Events.route,
-        label = "Events",
-        icon = Icons.Filled.Event
+        label = "Events"
     ),
     BottomNavItem(
         route = Screen.Relic.route,
-        label = "Relic",
-        icon = Icons.Filled.AutoFixHigh
+        label = "Relic"
     ),
     BottomNavItem(
         route = Screen.Leaderboard.route,
-        label = "Ranks",
-        icon = Icons.Filled.Leaderboard
+        label = "Ranks"
     ),
     BottomNavItem(
         route = Screen.Settings.route,
-        label = "Settings",
-        icon = Icons.Filled.Settings
+        label = "Settings"
     )
 )
 

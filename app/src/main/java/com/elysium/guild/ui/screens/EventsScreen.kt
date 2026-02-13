@@ -100,7 +100,7 @@ fun EventsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = Constants.TITLE_GUILD_EVENTS,
+                            text = Constants.TITLE_GUILD_EVENTS.uppercase(),
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 letterSpacing = 2.sp,
                                 shadow = androidx.compose.ui.graphics.Shadow(
@@ -113,7 +113,7 @@ fun EventsScreen(
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = "GUILD ACTIVITIES & UPDATES",
+                            text = Constants.SUBTITLE_GUILD_EVENTS.uppercase(),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             letterSpacing = 3.sp,

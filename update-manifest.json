@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 32,
-  "latestVersionName": "2.0.0",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v2.0.0/app-debug.apk",
-  "releaseNotes": "- Major Release: Introduced Multi-Relic Calculator.\n- Concurrent Tracking: Manage costs for all four relics simultaneously.\n- Selective Inclusion: Toggle specific relics for precise Temporal PC estimations.\n- Auto-Validation: Smarter level inputs with range correction and clamping.\n- Visual Overhaul: Fully themed color-coded inputs and high-contrast light mode support.",
+  "latestVersionCode": 33,
+  "latestVersionName": "2.0.1",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v2.0.1/app-debug.apk",
+  "releaseNotes": "- UI Consistency: Standardized navigation bar icons with unified stroke weights and visual styling.\n- New Custom Icons: Replaced remaining material icons with custom-drawn Boss, Event, Relic, Ranks, and Settings components.\n- Performance: Optimized vector drawing logic for navigation components.",
   "isForceUpdate": false
 }

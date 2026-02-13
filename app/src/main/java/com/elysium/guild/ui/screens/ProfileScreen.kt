@@ -152,11 +152,11 @@ fun ProfileScreen(
                     
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = stringResource(R.string.settings),
+                            text = stringResource(R.string.settings).uppercase(),
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 letterSpacing = 2.sp,
                                 shadow = Shadow(
-                                    color = if (isDark) ElysiumGold.copy(alpha = 0.5f) else Color.Transparent,
+                                    color = ElysiumGold.copy(alpha = 0.5f),
                                     blurRadius = 15f
                                 )
                             ),
@@ -165,9 +165,10 @@ fun ProfileScreen(
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = Constants.SUBTITLE_SETTINGS,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            text = Constants.SUBTITLE_SETTINGS.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            letterSpacing = 3.sp,
                             textAlign = TextAlign.Center
                         )
                     }

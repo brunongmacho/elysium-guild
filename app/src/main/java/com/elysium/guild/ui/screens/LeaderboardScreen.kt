@@ -77,7 +77,7 @@ fun LeaderboardScreen(
                     ) {
                         val baseStyle = if (screenWidth < 360.dp) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium
                         Text(
-                            text = Constants.TITLE_LEADERBOARD,
+                            text = Constants.TITLE_LEADERBOARD.uppercase(),
                             style = baseStyle.copy(
                                 letterSpacing = 2.sp,
                                 shadow = Shadow(
@@ -92,13 +92,13 @@ fun LeaderboardScreen(
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = Constants.SUBTITLE_LEADERBOARD,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            text = Constants.SUBTITLE_LEADERBOARD.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center,
-                            fontSize = if (screenWidth < 360.dp) 10.sp else 12.sp
+                            letterSpacing = 3.sp
                         )
                     }
                     

@@ -150,6 +150,9 @@ object Constants {
     const val TITLE_SETTINGS = "Settings"
     const val SUBTITLE_SETTINGS = "Manage your preferences"
 
+    const val TITLE_RELIC_CALC = "Relic Calculator"
+    const val SUBTITLE_RELIC_CALC = "Market-aware estimator"
+
     // Resource Names
     const val RES_QR_DONATION = "qr"
     const val RES_DEFAULT_SOUND = "terran_launch"

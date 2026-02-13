@@ -18,6 +18,14 @@ This document tracks planned UI/UX enhancements and code fixes to improve the ap
     - Test all layouts on small (320dp width) and large (tablet) screen sizes.
     - Wrap version-specific APIs (S+ Haptics, Exact Alarms) in safe wrappers.
 
+## 🔮 Relic Screen (New)
+- [x] **ViewModel Migration:** Move business logic and state management from the Composable to a `RelicViewModel`.
+- [x] **Owned Pieces Inventory:** Add a section to input current Temporal Pieces to calculate "Remaining Needed".
+- [x] **Market Shopping List:** Implement an automatic calculator that breaks down the required pieces into T1-T5 market packs.
+- [x] **Visual Tier Differentiation:** Apply unique colors/glows for each market tier (T1-T5).
+- [x] **Input Polish:** Add +/- buttons for quick level adjustments and validate level ranges (1-100).
+- [x] **Accessibility:** Add `contentDescription` to all relic icons and cost indicators.
+
 ## ⚔️ Boss Timers Screen
 - [x] **Visual Hierarchy:** Add animated "Legendary" borders for `isOurTurn` bosses.
 - [x] **Performance:** Move list filtering to `Dispatchers.Default` to prevent UI lag.
