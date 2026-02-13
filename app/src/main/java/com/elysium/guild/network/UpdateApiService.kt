@@ -2,11 +2,10 @@ package com.elysium.guild.network
 
 import retrofit2.Response
 import retrofit2.http.GET
-import retrofit2.http.Url
 
 interface UpdateApiService {
-    @GET
-    suspend fun getUpdateManifest(@Url url: String = "https://raw.githubusercontent.com/brunongmacho/elysium-guild/main/update-manifest.json"): Response<UpdateManifest>
+    @GET("brunongmacho/elysium-guild/main/update-manifest.json")
+    suspend fun getUpdateManifest(): Response<UpdateManifest>
 }
 
 data class UpdateManifest(

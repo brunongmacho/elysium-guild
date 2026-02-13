@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -28,11 +29,13 @@ import androidx.navigation.compose.rememberNavController
 import com.elysium.guild.ui.components.*
 import com.elysium.guild.ui.screens.*
 import com.elysium.guild.utils.PreferenceManager
+import com.elysium.guild.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ElysiumNavigation(
-    preferenceManager: PreferenceManager
+    preferenceManager: PreferenceManager,
+    profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -132,6 +135,7 @@ fun ElysiumNavigation(
                     composable(Screen.Settings.route) {
                         ProfileScreen(
                             navController = navController,
+                            viewModel = profileViewModel,
                             preferenceManager = preferenceManager
                         )
                     }

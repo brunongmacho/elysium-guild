@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 33,
-  "latestVersionName": "2.0.1",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v2.0.1/app-debug.apk",
+  "latestVersionCode": 34,
+  "latestVersionName": "2.0.2",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v2.0.2/app-debug.apk",
   "releaseNotes": "- UI Consistency: Standardized navigation bar icons with unified stroke weights and visual styling.\n- New Custom Icons: Replaced remaining material icons with custom-drawn Boss, Event, Relic, Ranks, and Settings components.\n- Performance: Optimized vector drawing logic for navigation components.",
   "isForceUpdate": false
 }
