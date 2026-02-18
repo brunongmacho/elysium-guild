@@ -1,18 +1,18 @@
 package com.elysium.guild.database
 
 import androidx.room.*
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.elysium.guild.models.*
 
 @Database(
     entities = [
         BossTimerEntity::class,
+        BossAlertOverrideEntity::class,
+        EventAlertOverrideEntity::class,
         LeaderboardEntryEntity::class,
         EventEntity::class,
         MemberProfileEntity::class
     ],
-    version = 1,
+    version = 15, // Force a clean start to resolve schema mismatches
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -33,11 +33,5 @@ class Converters {
     @TypeConverter
     fun toStringList(value: String): List<String> {
         return if (value.isEmpty()) emptyList() else value.split(",")
-    }
-}
-
-val MIGRATION_1_2 = object : Migration(1, 2) {
-    override fun migrate(database: SupportSQLiteDatabase) {
-        // Add new columns if needed in future versions
     }
 }

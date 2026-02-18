@@ -17,6 +17,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.util.Log
 
 @HiltViewModel
 class EventsViewModel @Inject constructor(
@@ -48,18 +49,24 @@ class EventsViewModel @Inject constructor(
         }
     }
     
-    fun refreshEvents(isInitial: Boolean = false) {
-        if (refreshJob?.isActive == true) return
+    fun refreshEvents(isInitial: Boolean = false, isSilent: Boolean = false) {
+        // Only skip if it's a background refresh and one is already running
+        if (refreshJob?.isActive == true && isSilent) return
+        
+        // Cancel existing job if we're forcing a refresh (like after an override toggle)
+        refreshJob?.cancel()
         
         refreshJob = viewModelScope.launch {
             try {
-                if (isInitial || _uiState.value.events.isEmpty()) {
-                    _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-                } else {
-                    _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
+                if (!isSilent) {
+                    if (isInitial || _uiState.value.events.isEmpty()) {
+                        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+                    } else {
+                        _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
+                    }
                 }
 
-                if (!isInitial) delay(500)
+                if (!isInitial && !isSilent) delay(300)
 
                 val events = repository.getEvents()
                 val now = Clock.System.now()
@@ -70,14 +77,14 @@ class EventsViewModel @Inject constructor(
 
                 _uiState.value = _uiState.value.copy(
                     events = sortedEvents,
-                    error = null
+                    error = null,
+                    isLoading = false,
+                    isRefreshing = false
                 )
             } catch (e: Exception) {
+                Log.e("EventsViewModel", "Error refreshing events", e)
                 _uiState.value = _uiState.value.copy(
-                    error = e.message ?: "Failed to refresh events"
-                )
-            } finally {
-                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Failed to refresh events",
                     isLoading = false,
                     isRefreshing = false
                 )
@@ -86,11 +93,32 @@ class EventsViewModel @Inject constructor(
     }
 
     private fun sortEvents(events: List<GuildEvent>, now: Instant): List<GuildEvent> {
-        return events.sortedWith(compareByDescending<GuildEvent> {
-            it.isLive(now)
-        }.thenBy {
-            Instant.parse(it.startTime)
-        })
+        return try {
+            events.sortedWith(compareByDescending<GuildEvent> {
+                it.isLive(now)
+            }.thenBy {
+                try { Instant.parse(it.startTime) } catch (e: Exception) { now }
+            })
+        } catch (e: Exception) {
+            events
+        }
+    }
+
+    fun toggleAlertOverride(event: GuildEvent) {
+        viewModelScope.launch {
+            try {
+                val nextOverride = when (event.alertOverride) {
+                    AlertOverride.DEFAULT -> AlertOverride.SOUND
+                    AlertOverride.SOUND -> AlertOverride.VIBRATE
+                    AlertOverride.VIBRATE -> AlertOverride.DEFAULT
+                }
+                repository.updateAlertOverride(event.id, nextOverride)
+                // Trigger a silent refresh to update the UI without showing progress bars
+                refreshEvents(isSilent = true)
+            } catch (e: Exception) {
+                Log.e("EventsViewModel", "Error toggling alert override", e)
+            }
+        }
     }
 
     fun toggleNotifications() {

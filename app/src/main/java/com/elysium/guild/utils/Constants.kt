@@ -9,7 +9,7 @@ object Constants {
     const val API_TIMEOUT = 30L
     
     // Database Configuration
-    const val DATABASE_NAME = "elysium_guild_database"
+    const val DATABASE_NAME = "elysium_guild_v2_database" // Changed name to force a fresh start
     
     // Shared Preferences Keys
     const val PREFS_NAME = "elysium_prefs"

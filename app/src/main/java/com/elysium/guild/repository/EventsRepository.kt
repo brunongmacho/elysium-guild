@@ -4,7 +4,9 @@ import android.util.Log
 import com.elysium.guild.database.EventsDao
 import com.elysium.guild.models.*
 import com.elysium.guild.network.ElysiumApiService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,43 +16,83 @@ class EventsRepository @Inject constructor(
     private val apiService: ElysiumApiService,
     private val eventsDao: EventsDao
 ) {
+    // Cache AlertOverride values to avoid repeated .values() calls
+    private val alertOverridesArray = AlertOverride.values()
+
+    private fun getSafeOverride(ordinal: Int): AlertOverride {
+        return if (ordinal in alertOverridesArray.indices) {
+            alertOverridesArray[ordinal]
+        } else {
+            AlertOverride.DEFAULT
+        }
+    }
     
-    suspend fun getEvents(): List<GuildEvent> {
-        return try {
+    suspend fun getEvents(): List<GuildEvent> = withContext(Dispatchers.IO) {
+        val overrides = try {
+            // FIX: Removed .first() because getAllAlertOverrides() returns a List, not a Flow
+            eventsDao.getAllAlertOverrides().associateBy { it.eventId }
+        } catch (e: Exception) {
+            Log.e("EventsRepository", "Failed to fetch overrides from DB", e)
+            emptyMap()
+        }
+
+        try {
             val response = apiService.getEvents()
             val apiEvents = if (response.isSuccessful && response.body()?.success == true) {
-                val events = response.body()?.data?.events ?: emptyList()
+                val events = (response.body()?.data?.events ?: emptyList()).map { event ->
+                    val overrideOrdinal = overrides[event.id]?.alertOverride ?: AlertOverride.DEFAULT.ordinal
+                    event.copy(alertOverride = getSafeOverride(overrideOrdinal))
+                }
                 saveEventsToLocal(events)
                 events
             } else {
                 Log.w("EventsRepository", "API response unsuccessful, trying cache")
-                getCachedEvents()
+                getCachedEventsInternal(overrides)
             }
 
-            // If API and cache return no events, provide the guild's standard schedule
             if (apiEvents.isEmpty()) {
-                getMockEvents()
+                getMockEventsWithOverrides(overrides)
             } else {
                 apiEvents
             }
         } catch (e: Exception) {
             Log.e("EventsRepository", "Error fetching events, using cache/mock", e)
-            val cached = getCachedEvents()
-            if (cached.isEmpty()) getMockEvents() else cached
+            val cached = getCachedEventsInternal(overrides)
+            if (cached.isEmpty()) {
+                getMockEventsWithOverrides(overrides)
+            } else cached
         }
     }
 
-    private suspend fun getCachedEvents(): List<GuildEvent> {
+    suspend fun updateAlertOverride(eventId: String, override: AlertOverride) = withContext(Dispatchers.IO) {
+        try {
+            eventsDao.insertAlertOverride(EventAlertOverrideEntity(eventId, override.ordinal))
+        } catch (e: Exception) {
+            Log.e("EventsRepository", "Failed to update alert override", e)
+        }
+    }
+
+    private suspend fun getCachedEventsInternal(overrides: Map<String, EventAlertOverrideEntity>): List<GuildEvent> {
         return try {
             val entities = eventsDao.getAllEvents().first()
-            entities.map { it.toDomainModel() }
+            entities.map { entity ->
+                val overrideOrdinal = overrides[entity.id]?.alertOverride ?: AlertOverride.DEFAULT.ordinal
+                entity.toDomainModel().copy(alertOverride = getSafeOverride(overrideOrdinal))
+            }
         } catch (e: Exception) {
             Log.e("EventsRepository", "Failed to fetch events from cache", e)
             emptyList()
         }
     }
 
-    private suspend fun saveEventsToLocal(events: List<GuildEvent>) {
+    private fun getMockEventsWithOverrides(overrides: Map<String, EventAlertOverrideEntity>): List<GuildEvent> {
+        return getMockEvents().map { event ->
+            val overrideOrdinal = overrides[event.id]?.alertOverride ?: AlertOverride.DEFAULT.ordinal
+            event.copy(alertOverride = getSafeOverride(overrideOrdinal))
+        }
+    }
+
+    private suspend fun saveEventsToLocal(events: List<GuildEvent>) = withContext(Dispatchers.IO) {
         try {
             val entities = events.map { it.toEntity() }
             eventsDao.clearAll()
@@ -111,7 +153,6 @@ class EventsRepository @Inject constructor(
         var startInstant = eventDateTime.toInstant(tz)
         var endInstant = startInstant.plus(durationMinutes, DateTimeUnit.MINUTE)
 
-        // If the event has already ended today, move to the next occurrence
         if (endInstant < Clock.System.now()) {
             val nextDay = date.plus(1, DateTimeUnit.DAY)
             val nextEventDateTime = LocalDateTime(nextDay.year, nextDay.month, nextDay.dayOfMonth, hour, minute)
@@ -142,7 +183,6 @@ class EventsRepository @Inject constructor(
     }
 }
 
-// Extension functions for mapping between Domain and Entity models
 fun GuildEvent.toEntity(): EventEntity {
     return EventEntity(
         id = this.id,

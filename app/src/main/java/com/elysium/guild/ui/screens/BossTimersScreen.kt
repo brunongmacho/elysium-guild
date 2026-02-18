@@ -89,6 +89,14 @@ fun BossTimersScreen(
             HapticUtils.performHapticFeedback(context, duration = 15)
         }
     }
+
+    // Force scroll to top when filters or search changes to ensure user sees the start of the results
+    // and doesn't "follow" the previous position which might be in the middle of a now-shorter list
+    LaunchedEffect(uiState.onlyElysiumTurn, uiState.selectedFilter, uiState.searchQuery) {
+        if (uiState.filteredBosses.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
     
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -166,7 +174,6 @@ fun BossTimersScreen(
                             query = uiState.searchQuery,
                             onQueryChange = { 
                                 viewModel.onSearchQueryChanged(it)
-                                coroutineScope.launch { listState.animateScrollToItem(0) }
                             },
                             onClear = { viewModel.onSearchQueryChanged("") },
                             placeholder = "Search encounter...",
@@ -176,7 +183,6 @@ fun BossTimersScreen(
                         IconButton(
                             onClick = { 
                                 viewModel.toggleElysiumTurnFilter()
-                                coroutineScope.launch { listState.animateScrollToItem(0) }
                             },
                             modifier = Modifier
                                 .size(56.dp)
@@ -228,7 +234,6 @@ fun BossTimersScreen(
                         selectedFilter = uiState.selectedFilter,
                         onFilterSelected = { filter ->
                             viewModel.setFilter(filter)
-                            coroutineScope.launch { listState.animateScrollToItem(0) }
                         },
                         filters = filters,
                         counts = filterCounts
@@ -276,7 +281,8 @@ fun BossTimersScreen(
                                         useLocalTimezone = useLocalTimezone,
                                         searchQuery = uiState.searchQuery,
                                         sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                        onAlertOverrideToggle = { viewModel.toggleAlertOverride(it) }
                                     )
                                 }
                             }

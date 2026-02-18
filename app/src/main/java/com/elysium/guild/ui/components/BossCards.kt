@@ -11,6 +11,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -56,7 +57,8 @@ fun BossTimerCard(
     useLocalTimezone: Boolean = false,
     searchQuery: String = "",
     sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onAlertOverrideToggle: (BossTimer) -> Unit = {}
 ) {
     val context = LocalContext.current
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
@@ -151,14 +153,22 @@ fun BossTimerCard(
                                     color = if (isReady) animatedColor else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1
                                 )
+                                
+                                val typeLabel = when(boss.type.lowercase()) {
+                                    "timer" -> "TIMED"
+                                    "schedule" -> "SCHEDULED"
+                                    else -> boss.type.uppercase()
+                                }
+                                
                                 Text(
-                                    text = "${boss.bossPoints} BP • ${boss.type.uppercase()}",
+                                    text = "${boss.bossPoints} BP • $typeLabel",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (isElysiumTurn && isDark) animatedColor else if (isElysiumTurn) Color(0xFF5D4037) else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp
                                 )
                             }
+                            
                             StatusBadge(boss = boss, currentTime = currentTime, statusColor = animatedColor)
                         }
 
@@ -168,14 +178,60 @@ fun BossTimerCard(
                             RotationStatus(it, animatedColor)
                         }
 
-                        SpawnTimeText(boss, useLocalTimezone)
+                        Column {
+                            SpawnTimeText(boss, useLocalTimezone)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            AlertOverrideRow(boss = boss, onToggle = onAlertOverrideToggle)
+                        }
                     }
                 }
                 
-                // Requirement Fix: Progress bar moved inside card, not part of the border
                 DynamicProgressBar(boss, animatedColor)
             }
         }
+    }
+}
+
+@Composable
+private fun AlertOverrideRow(boss: BossTimer, onToggle: (BossTimer) -> Unit) {
+    val context = LocalContext.current
+    val (icon, label, color) = when (boss.alertOverride) {
+        AlertOverride.DEFAULT -> Triple(Icons.Default.NotificationsNone, "System Default", MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+        AlertOverride.SOUND -> Triple(Icons.Default.NotificationsActive, "Force Sound", MaterialTheme.colorScheme.primary)
+        AlertOverride.VIBRATE -> Triple(Icons.Default.Vibration, "Force Vibrate", MaterialTheme.colorScheme.secondary)
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .clickable {
+                HapticUtils.performHapticFeedback(context, duration = 15)
+                onToggle(boss)
+                // Determine the next label for the Toast so it matches the new state
+                val nextLabel = when (boss.alertOverride) {
+                    AlertOverride.DEFAULT -> "Force Sound"
+                    AlertOverride.SOUND -> "Force Vibrate"
+                    AlertOverride.VIBRATE -> "System Default"
+                }
+                Toast.makeText(context, "Alert: $nextLabel", Toast.LENGTH_SHORT).show()
+            }
+            .padding(vertical = 2.dp, horizontal = 4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = color,
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 0.5.sp
+        )
     }
 }
 
@@ -340,7 +396,6 @@ private fun DynamicProgressBar(boss: BossTimer, animatedColor: Color) {
             remember { mutableStateOf(1f) }
         }
 
-        // FIX: Added horizontal padding to the progress bar to separate it from the card border
         Box(
             modifier = Modifier
                 .padding(horizontal = 16.dp, vertical = 8.dp)

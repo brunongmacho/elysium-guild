@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
+import com.elysium.guild.models.*
 import com.elysium.guild.repository.BossTimersRepository
 import com.elysium.guild.repository.EventsRepository
 import dagger.assisted.Assisted
@@ -32,18 +33,24 @@ class BossNotificationWorker @AssistedInject constructor(
         return try {
             val now = Clock.System.now()
 
-            // 1. Handle Boss Notifications (if enabled)
+            // 1. Handle Boss Notifications
             if (preferenceManager.bossNotificationsEnabled.value) {
                 val bosses = bossRepository.getBossTimers()
                 bosses.forEach { boss ->
                     val spawnTimeStr = boss.nextSpawnTime ?: return@forEach
                     val spawnTime = try { Instant.parse(spawnTimeStr) } catch (e: Exception) { return@forEach }
                     
-                    scheduleAlarmSafely(boss.bossName, spawnTime, preferenceManager.bossNotificationOffset, isEvent = false)
+                    scheduleAlarmSafely(
+                        name = boss.bossName, 
+                        time = spawnTime, 
+                        minutesBefore = preferenceManager.bossNotificationOffset, 
+                        isEvent = false,
+                        alertOverride = boss.alertOverride
+                    )
                 }
             }
 
-            // 2. Handle Guild Event Notifications (if enabled)
+            // 2. Handle Guild Event Notifications
             if (preferenceManager.eventNotificationsEnabled.value) {
                 val events = eventsRepository.getEvents()
                 events.forEach { event ->
@@ -51,12 +58,16 @@ class BossNotificationWorker @AssistedInject constructor(
                     val startTime = try { Instant.parse(startTimeStr) } catch (e: Exception) { return@forEach }
                     val endTime = event.endTime?.let { try { Instant.parse(it) } catch(e: Exception) { null } }
                     
-                    // If event is currently running (now is between start and end), 
-                    // we don't schedule a start notification, but we maintain the 'READY' status in UI.
                     val isRunning = endTime?.let { now >= startTime && now < it } ?: false
                     
                     if (!isRunning) {
-                        scheduleAlarmSafely(event.name, startTime, Constants.DEFAULT_NOTIFICATION_OFFSET_MINUTES, isEvent = true)
+                        scheduleAlarmSafely(
+                            name = event.name, 
+                            time = startTime, 
+                            minutesBefore = Constants.DEFAULT_NOTIFICATION_OFFSET_MINUTES, 
+                            isEvent = true,
+                            alertOverride = event.alertOverride
+                        )
                     }
                 }
             }
@@ -69,7 +80,13 @@ class BossNotificationWorker @AssistedInject constructor(
         }
     }
 
-    private fun scheduleAlarmSafely(name: String, time: Instant, minutesBefore: Int, isEvent: Boolean) {
+    private fun scheduleAlarmSafely(
+        name: String, 
+        time: Instant, 
+        minutesBefore: Int, 
+        isEvent: Boolean,
+        alertOverride: AlertOverride
+    ) {
         val alarmTimeMs = time.toEpochMilliseconds() - (minutesBefore * 60 * 1000)
         val nowMs = Clock.System.now().toEpochMilliseconds()
 
@@ -80,6 +97,7 @@ class BossNotificationWorker @AssistedInject constructor(
             putExtra(Constants.EXTRA_BOSS_NAME, name)
             putExtra(Constants.EXTRA_MINUTES_REMAINING, minutesBefore)
             putExtra(Constants.EXTRA_IS_EVENT, isEvent)
+            putExtra("extra_alert_override", alertOverride.ordinal)
         }
         
         val requestCode = if (isEvent) name.hashCode() + 1 else name.hashCode()
@@ -93,17 +111,17 @@ class BossNotificationWorker @AssistedInject constructor(
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
+                if (alarmManager?.canScheduleExactAlarms() == true) {
                     alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
                 } else {
-                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
+                    alarmManager?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
                 }
             } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
+                alarmManager?.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
             }
         } catch (se: SecurityException) {
             Log.e("BossWorker", "SecurityException during alarm scheduling", se)
-            alarmManager.set(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
+            alarmManager?.set(AlarmManager.RTC_WAKEUP, alarmTimeMs, pendingIntent)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to schedule alarm: ${e.message}")
         }

@@ -160,7 +160,8 @@ fun EventsScreen(
                                             currentTime = currentTime,
                                             useLocalTimezone = useLocalTimezone,
                                             sharedTransitionScope = sharedTransitionScope,
-                                            animatedVisibilityScope = animatedVisibilityScope
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                            onAlertOverrideToggle = { viewModel.toggleAlertOverride(it) }
                                         )
                                     }
                                 }

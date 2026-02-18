@@ -4,10 +4,13 @@ import android.util.Log
 import com.elysium.guild.database.BossTimerDao
 import com.elysium.guild.models.*
 import com.elysium.guild.network.ElysiumApiService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,45 +22,56 @@ class BossTimersRepository @Inject constructor(
     private val _bossDataChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val bossDataChanged: SharedFlow<Unit> = _bossDataChanged.asSharedFlow()
 
-    // Cache of boss statuses to prevent unnecessary UI refreshes
-    private val previousStatuses = mutableMapOf<String, String>()
+    private val previousStatuses = ConcurrentHashMap<String, String>()
 
-    suspend fun getBossTimers(): List<BossTimer> {
-        return try {
+    suspend fun getBossTimers(): List<BossTimer> = withContext(Dispatchers.IO) {
+        val overrides = try {
+            bossTimerDao.getAllAlertOverrides().associateBy { it.bossName }
+        } catch (e: Exception) {
+            Log.e("BossTimersRepository", "Failed to fetch overrides", e)
+            emptyMap()
+        }
+
+        try {
             val response = apiService.getBossTimers()
             if (response.isSuccessful) {
                 val body = response.body()
-                if (body != null && body.success == true) {
-                    val bosses = body.bosses ?: emptyList()
+                if (body != null) {
+                    val bossesList = body.bosses ?: body.data ?: emptyList()
+                    if (bossesList.isNotEmpty() || body.success == true) {
+                        val bosses = bossesList.map { boss ->
+                            val overrideOrdinal = overrides[boss.bossName]?.alertOverride ?: AlertOverride.DEFAULT.ordinal
+                            val override = AlertOverride.entries.getOrElse(overrideOrdinal) { AlertOverride.DEFAULT }
+                            boss.copy(alertOverride = override)
+                        }
 
-                    // Only notify observers if there's a significant status change (tagging change)
-                    // This prevents the leaderboard and other observers from refreshing
-                    // during regular polling when everything is still in the "tracking" state.
-                    val hasStatusChanged = detectStatusChanges(bosses)
+                        val hasStatusChanged = detectStatusChanges(bosses)
+                        saveBossesToLocal(bosses)
 
-                    // Save to local database for offline support and better stability
-                    saveBossesToLocal(bosses)
-
-                    if (hasStatusChanged) {
-                        _bossDataChanged.tryEmit(Unit)
+                        if (hasStatusChanged) {
+                            _bossDataChanged.tryEmit(Unit)
+                        }
+                        return@withContext bosses
                     }
-                    return bosses
                 }
             }
-
-            // If API fails, fall back to local database
-            Log.w("BossTimersRepository", "API failed, falling back to local database")
-            getCachedBosses()
+            Log.w("BossTimersRepository", "API unsuccessful, falling back to cache")
+            getCachedBossesInternal(overrides)
         } catch (e: Exception) {
-            Log.e("BossTimersRepository", "Failed to fetch boss timers, using cache", e)
-            getCachedBosses()
+            Log.e("BossTimersRepository", "Error fetching boss timers", e)
+            getCachedBossesInternal(overrides)
         }
     }
 
-    /**
-     * Detects if any boss has transitioned between statuses (tracking, soon, ready, overdue).
-     * Returns true if at least one boss has changed its "tagging".
-     */
+    suspend fun updateAlertOverride(bossName: String, override: AlertOverride) = withContext(Dispatchers.IO) {
+        try {
+            bossTimerDao.insertAlertOverride(BossAlertOverrideEntity(bossName, override.ordinal))
+            _bossDataChanged.tryEmit(Unit)
+        } catch (e: Exception) {
+            Log.e("BossTimersRepository", "Failed to update alert override", e)
+        }
+    }
+
     private fun detectStatusChanges(newBosses: List<BossTimer>): Boolean {
         var anyChange = false
         newBosses.forEach { boss ->
@@ -70,10 +84,14 @@ class BossTimersRepository @Inject constructor(
         return anyChange
     }
 
-    private suspend fun getCachedBosses(): List<BossTimer> {
+    private suspend fun getCachedBossesInternal(overrides: Map<String, BossAlertOverrideEntity>): List<BossTimer> {
         return try {
             val entities = bossTimerDao.getAllBossTimers().first()
-            entities.map { it.toDomainModel() }
+            entities.map { entity ->
+                val overrideOrdinal = overrides[entity.name]?.alertOverride ?: AlertOverride.DEFAULT.ordinal
+                val override = AlertOverride.entries.getOrElse(overrideOrdinal) { AlertOverride.DEFAULT }
+                entity.toDomainModel().copy(alertOverride = override)
+            }
         } catch (e: Exception) {
             Log.e("BossTimersRepository", "Failed to fetch from cache", e)
             emptyList()
@@ -86,12 +104,11 @@ class BossTimersRepository @Inject constructor(
             bossTimerDao.clearAll()
             bossTimerDao.insertAll(entities)
         } catch (e: Exception) {
-            Log.e("BossTimersRepository", "Failed to save to cache", e)
+            Log.e("BossTimersRepository", "Failed to save to local DB", e)
         }
     }
 }
 
-// Extension functions for mapping between Domain and Entity models
 fun BossTimer.toEntity(): BossTimerEntity {
     return BossTimerEntity(
         id = this.bossName,
@@ -114,7 +131,7 @@ fun BossTimerEntity.toDomainModel(): BossTimer {
         imageUrl = this.imageUrl,
         nextSpawnTime = this.nextSpawnTime,
         status = this.status,
-        timeRemaining = null, // Will be recalculated by ViewModel
+        timeRemaining = null,
         rotation = RotationInfo(
             isRotating = this.isRotating,
             currentGuild = this.currentGuild

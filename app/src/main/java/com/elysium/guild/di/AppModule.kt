@@ -34,7 +34,7 @@ object DatabaseModule {
             ElysiumDatabase::class.java,
             Constants.DATABASE_NAME
         )
-        .fallbackToDestructiveMigration() // Critical for stability when updating app versions
+        .fallbackToDestructiveMigration() // Critical to resolve schema conflicts by clearing existing data
         .build()
     }
 

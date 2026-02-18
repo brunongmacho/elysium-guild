@@ -21,6 +21,16 @@ interface BossTimerDao {
     
     @Query("DELETE FROM boss_timers")
     suspend fun clearAll(): Int
+
+    // Alert Overrides
+    @Query("SELECT * FROM boss_alert_overrides")
+    suspend fun getAllAlertOverrides(): List<BossAlertOverrideEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAlertOverride(override: BossAlertOverrideEntity)
+
+    @Query("SELECT * FROM boss_alert_overrides WHERE bossName = :bossName")
+    suspend fun getAlertOverrideForBoss(bossName: String): BossAlertOverrideEntity?
 }
 
 @Dao
@@ -50,6 +60,16 @@ interface EventsDao {
     
     @Query("DELETE FROM events")
     suspend fun clearAll(): Int
+
+    // Alert Overrides
+    @Query("SELECT * FROM event_alert_overrides")
+    suspend fun getAllAlertOverrides(): List<EventAlertOverrideEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAlertOverride(override: EventAlertOverrideEntity)
+
+    @Query("SELECT * FROM event_alert_overrides WHERE eventId = :eventId")
+    suspend fun getAlertOverrideForEvent(eventId: String): EventAlertOverrideEntity?
 }
 
 @Dao

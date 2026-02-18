@@ -24,11 +24,16 @@ data class BossTimer(
     @SerializedName("kill_count", alternate = ["killCount"]) val killCount: Int = 0,
     @SerializedName("is_predicted", alternate = ["isPredicted"]) val isPredicted: Boolean = false,
     val rotation: RotationInfo? = null,
-    @SerializedName("image_url", alternate = ["imageUrl"]) val imageUrl: String? = null
+    @SerializedName("image_url", alternate = ["imageUrl"]) val imageUrl: String? = null,
+    val alertOverride: AlertOverride = AlertOverride.DEFAULT
 ) {
     fun isReady() = status == Constants.STATUS_READY || status == Constants.STATUS_OVERDUE || (timeRemaining ?: 1L) <= 0L
     fun isSoon() = !isReady() && (status == Constants.STATUS_SOON || (timeRemaining != null && timeRemaining <= Constants.SPAWNING_SOON_THRESHOLD_MS))
     fun isTracking() = !isReady() && !isSoon()
+}
+
+enum class AlertOverride {
+    DEFAULT, SOUND, VIBRATE
 }
 
 @Immutable
@@ -84,7 +89,8 @@ data class GuildEvent(
     @SerializedName("start_time", alternate = ["startTime"]) val startTime: String,
     @SerializedName("end_time", alternate = ["endTime"]) val endTime: String?,
     val description: String,
-    @SerializedName("reminder_set", alternate = ["reminderSet"]) val reminderSet: Boolean
+    @SerializedName("reminder_set", alternate = ["reminderSet"]) val reminderSet: Boolean,
+    val alertOverride: AlertOverride = AlertOverride.DEFAULT
 ) {
     fun getStatus(now: Instant): EventStatus {
         return try {
@@ -193,6 +199,18 @@ data class BossTimerEntity(
     val imageUrl: String?,
     val isRotating: Boolean,
     val currentGuild: String?
+)
+
+@Entity(tableName = "boss_alert_overrides")
+data class BossAlertOverrideEntity(
+    @PrimaryKey val bossName: String,
+    val alertOverride: Int // 0: DEFAULT, 1: SOUND, 2: VIBRATE
+)
+
+@Entity(tableName = "event_alert_overrides")
+data class EventAlertOverrideEntity(
+    @PrimaryKey val eventId: String,
+    val alertOverride: Int // 0: DEFAULT, 1: SOUND, 2: VIBRATE
 )
 
 @Entity(tableName = "leaderboard", primaryKeys = ["memberId", "type", "period"])

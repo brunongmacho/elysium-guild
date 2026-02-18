@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.elysium.guild.MainActivity
 import com.elysium.guild.R
+import com.elysium.guild.models.AlertOverride
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,45 +31,49 @@ class NotificationHelper @Inject constructor(
         createNotificationChannel()
     }
 
-    private fun getChannelIdForCurrentSound(): String {
+    private fun getChannelIdForCurrentSound(override: AlertOverride = AlertOverride.DEFAULT): String {
         val soundName = preferenceManager.notificationSound.value
-        val vibrateOnly = preferenceManager.vibrateOnly.value
+        val globalVibrateOnly = preferenceManager.vibrateOnly.value
         val hapticEnabled = preferenceManager.hapticEnabled.value
         
-        return if (vibrateOnly) {
+        val effectiveVibrateOnly = when (override) {
+            AlertOverride.VIBRATE -> true
+            AlertOverride.SOUND -> false
+            AlertOverride.DEFAULT -> globalVibrateOnly
+        }
+        
+        return if (effectiveVibrateOnly) {
             "${BASE_CHANNEL_ID}_vibrate_mode"
         } else {
             "${BASE_CHANNEL_ID}_${soundName}_haptic_${hapticEnabled}"
         }
     }
 
-    fun createNotificationChannel() {
+    fun createNotificationChannel(override: AlertOverride = AlertOverride.DEFAULT) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val soundName = preferenceManager.notificationSound.value
-            val vibrateOnly = preferenceManager.vibrateOnly.value
+            val globalVibrateOnly = preferenceManager.vibrateOnly.value
             val hapticEnabled = preferenceManager.hapticEnabled.value
-            val channelId = getChannelIdForCurrentSound()
-
-            val name = "Boss & Event Alerts"
+            
+            val effectiveVibrateOnly = when (override) {
+                AlertOverride.VIBRATE -> true
+                AlertOverride.SOUND -> false
+                AlertOverride.DEFAULT -> globalVibrateOnly
+            }
+            
+            val channelId = getChannelIdForCurrentSound(override)
+            val name = if (effectiveVibrateOnly) "Boss Alerts (Vibrate)" else "Boss Alerts (Sound)"
             val descriptionText = "Notifications for boss spawns and guild events."
 
-            // High importance for heads-up notifications
             val importance = NotificationManager.IMPORTANCE_HIGH
-
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             
-            // Delete old channels if they exist to ensure settings are applied correctly
-            // This is a bit aggressive but ensures the user's latest preference is respected
-            // as Notification Channels are mostly immutable after creation.
-            // However, we are using unique IDs for different sound/vibrate combinations,
-            // so this shouldn't be strictly necessary unless something is cached weirdly.
-
             val channel = NotificationChannel(channelId, name, importance).apply {
                 description = descriptionText
-                enableVibration(vibrateOnly || hapticEnabled)
+                enableVibration(effectiveVibrateOnly || hapticEnabled)
                 setShowBadge(true)
                 
-                if (vibrateOnly) {
+                if (effectiveVibrateOnly) {
                     setSound(null, null)
                     vibrationPattern = longArrayOf(0, 500, 200, 500)
                 } else {
@@ -97,11 +102,17 @@ class NotificationHelper @Inject constructor(
         }
     }
 
-    fun showBossNotification(bossName: String, minutesRemaining: Int) {
-        createNotificationChannel()
+    fun showBossNotification(bossName: String, minutesRemaining: Int, override: AlertOverride = AlertOverride.DEFAULT) {
+        createNotificationChannel(override)
         
-        val vibrateOnly = preferenceManager.vibrateOnly.value
+        val globalVibrateOnly = preferenceManager.vibrateOnly.value
         val hapticEnabled = preferenceManager.hapticEnabled.value
+        
+        val effectiveVibrateOnly = when (override) {
+            AlertOverride.VIBRATE -> true
+            AlertOverride.SOUND -> false
+            AlertOverride.DEFAULT -> globalVibrateOnly
+        }
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -117,7 +128,7 @@ class NotificationHelper @Inject constructor(
         val title = "$bossName in $minutesRemaining mins!"
         val message = "Prepare for the kill! The boss spawns in $minutesRemaining minutes."
 
-        val builder = NotificationCompat.Builder(context, getChannelIdForCurrentSound())
+        val builder = NotificationCompat.Builder(context, getChannelIdForCurrentSound(override))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(message)
@@ -126,12 +137,11 @@ class NotificationHelper @Inject constructor(
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
 
-        if (vibrateOnly) {
+        if (effectiveVibrateOnly) {
             builder.setSound(null)
             builder.setVibrate(longArrayOf(0, 500, 200, 500))
             builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE)
         } else {
-            // For older Android versions, manually set the sound on the builder
             val soundName = preferenceManager.notificationSound.value
             val resId = try {
                 val id = context.resources.getIdentifier(soundName, "raw", context.packageName)

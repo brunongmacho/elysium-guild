@@ -152,6 +152,18 @@ class BossTimersViewModel @Inject constructor(
         _refreshEvents.tryEmit(!isBackground)
     }
 
+    fun toggleAlertOverride(boss: BossTimer) {
+        viewModelScope.launch {
+            val nextOverride = when (boss.alertOverride) {
+                AlertOverride.DEFAULT -> AlertOverride.SOUND
+                AlertOverride.SOUND -> AlertOverride.VIBRATE
+                AlertOverride.VIBRATE -> AlertOverride.DEFAULT
+            }
+            repository.updateAlertOverride(boss.bossName, nextOverride)
+            refreshTimers(isBackground = true)
+        }
+    }
+
     fun setFilter(filter: String) {
         viewModelScope.launch {
             val filtered = withContext(Dispatchers.Default) {
