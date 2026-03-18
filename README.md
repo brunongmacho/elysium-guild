@@ -1,8 +1,8 @@
 # ⚔️ Elysium Guild Mobile App
 
-[![Version](https://img.shields.io/badge/Version-2.0.0-gold.svg?style=for-the-badge)](https://github.com/brunongmacho/elysium-guild/releases)
+[![Version](https://img.shields.io/badge/Version-2.1.1-gold.svg?style=for-the-badge)](https://github.com/brunongmacho/elysium-guild/releases)
 [![Platform](https://img.shields.io/badge/Platform-Android_8.0+-000000.svg?style=for-the-badge&logo=android)](https://developer.android.com)
-[![Engine](https://img.shields.io/badge/UI-Jetpack_Compose-4285F4.svg?style=for-the-badge&logo=jetpackcompose)](https://developer.android.com/compose)
+[![Engine](https://img.shields.io/badge/UI-Jetpack_Compose-4285F4.svg?style=for-the-badge&logo=jetpackcompose)](https://developer.android.com)
 
 A premium, high-performance Android utility built for the **Elysium Guild**. This application serves as a real-time tactical hub, integrating world boss tracking, guild event scheduling, and competitive performance metrics into a single, cohesive experience.
 
@@ -90,8 +90,8 @@ The app uses a fully automated **GitHub Actions** CI/CD pipeline:
 2.  **Manifest Update**: Synchronize `update-manifest.json` at the root.
 3.  **Deploy**: 
     ```bash
-    git tag v2.0.0
-    git push origin v2.0.0
+    git tag v2.1.1
+    git push origin v2.1.1
     ```
 4.  **Result**: GitHub automatically builds the signed APK and attaches it to a new Release.
 

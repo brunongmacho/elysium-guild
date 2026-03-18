@@ -119,7 +119,8 @@ enum class EventType {
     ARENA_BATTLE,
     GUILD_BOSS,
     GVG,
-    SPECIAL_EVENT
+    SPECIAL_EVENT,
+    ANCIENT_CITADEL
 }
 
 @Immutable

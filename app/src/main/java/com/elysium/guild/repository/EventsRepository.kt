@@ -124,7 +124,7 @@ class EventsRepository @Inject constructor(
             createGuildEvent(
                 "4", "Guild Boss", EventType.GUILD_BOSS,
                 getNextDayOfWeek(today, listOf(DayOfWeek.MONDAY)),
-                21, 0, 5, "Monday Guild Boss - 9:00 PM (5m duration)"
+                21, 30, 5, "Monday Guild Boss - 9:30 PM (5m duration)"
             ),
             createGuildEvent(
                 "5", "Coop Round Arena", EventType.ARENA_BATTLE,
@@ -140,6 +140,56 @@ class EventsRepository @Inject constructor(
                 "7", "GvG / Guild War", EventType.GVG,
                 getNextDayOfWeek(today, listOf(DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)),
                 20, 25, 3, "Fri, Sat, Sun Guild War - 8:25 PM (3m duration)"
+            ),
+            // Ancient Citadel Events
+            // Monday
+            createGuildEvent("8", "Ancient Citadel - Duplican", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.MONDAY)), 12, 0, 60, "Monday AC - 12:00 PM"
+            ),
+            createGuildEvent("9", "Ancient Citadel - Wannitas", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.MONDAY)), 21, 0, 60, "Monday AC - 9:00 PM"
+            ),
+            // Tuesday
+            createGuildEvent("10", "Ancient Citadel - Metus", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.TUESDAY)), 12, 0, 60, "Tuesday AC - 12:00 PM"
+            ),
+            createGuildEvent("11", "Ancient Citadel - Saphirus", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.TUESDAY)), 21, 0, 60, "Tuesday AC - 9:00 PM"
+            ),
+            // Wednesday
+            createGuildEvent("12", "Ancient Citadel - Clemantis", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.WEDNESDAY)), 12, 0, 60, "Wednesday AC - 12:00 PM"
+            ),
+            createGuildEvent("13", "Ancient Citadel - Secreta", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.WEDNESDAY)), 21, 0, 60, "Wednesday AC - 9:00 PM"
+            ),
+            // Thursday
+            createGuildEvent("14", "Ancient Citadel - Neutro", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.THURSDAY)), 12, 0, 60, "Thursday AC - 12:00 PM"
+            ),
+            createGuildEvent("15", "Ancient Citadel - Roderick", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.THURSDAY)), 21, 0, 60, "Thursday AC - 9:00 PM"
+            ),
+            // Friday
+            createGuildEvent("16", "Ancient Citadel - Auraq", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.FRIDAY)), 12, 0, 60, "Friday AC - 12:00 PM"
+            ),
+            createGuildEvent("17", "Ancient Citadel - Thymele", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.FRIDAY)), 21, 0, 60, "Friday AC - 9:00 PM"
+            ),
+            // Saturday
+            createGuildEvent("18", "Ancient Citadel - Titore", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.SATURDAY)), 12, 0, 60, "Saturday AC - 12:00 PM"
+            ),
+            createGuildEvent("19", "Ancient Citadel - Ringor", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.SATURDAY)), 21, 0, 60, "Saturday AC - 9:00 PM"
+            ),
+            // Sunday
+            createGuildEvent("20", "Ancient Citadel - Chaiflock", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.SUNDAY)), 12, 0, 60, "Sunday AC - 12:00 PM"
+            ),
+            createGuildEvent("21", "Ancient Citadel - Benji", EventType.ANCIENT_CITADEL,
+                getNextDayOfWeek(today, listOf(DayOfWeek.SUNDAY)), 21, 0, 60, "Sunday AC - 9:00 PM"
             )
         ).sortedBy { it.startTime }
     }

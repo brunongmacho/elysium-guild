@@ -63,6 +63,7 @@ object UIUtils {
             EventType.GUILD_BOSS -> "👹"
             EventType.GVG -> "⚔️"
             EventType.SPECIAL_EVENT -> "🎯"
+            EventType.ANCIENT_CITADEL -> "🏰"
         }
     }
 
