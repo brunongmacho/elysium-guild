@@ -1,7 +1,7 @@
 {
-  "latestVersionCode": 37,
-  "latestVersionName": "2.1.1",
-  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v2.1.1/app-debug.apk",
-  "releaseNotes": "- Update: Changed Monday Guild Boss time to 9:30 PM.\n- New Feature: Added Ancient Citadel event type and 14 new scheduled events.\n- UI: Added unique icon for Ancient Citadel events.",
+  "latestVersionCode": 38,
+  "latestVersionName": "2.1.2",
+  "apkUrl": "https://github.com/brunongmacho/elysium-guild/releases/download/v2.1.2/app-debug.apk",
+  "releaseNotes": "- Update: Refined Magic Storm relic calculation costs.\n- Update: Internal version bump to 2.1.2.",
   "isForceUpdate": false
 }
