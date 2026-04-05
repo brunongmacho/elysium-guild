@@ -140,7 +140,8 @@ class EventsRepository @Inject constructor(
                 "7", "GvG / Guild War", EventType.GVG,
                 getNextDayOfWeek(today, listOf(DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)),
                 20, 25, 3, "Fri, Sat, Sun Guild War - 8:25 PM (3m duration)"
-            ),
+            )
+            /* Temporarily disabled Ancient Citadel Events
             // Ancient Citadel Events
             // Monday
             createGuildEvent("8", "Ancient Citadel - Duplican", EventType.ANCIENT_CITADEL,
@@ -191,6 +192,7 @@ class EventsRepository @Inject constructor(
             createGuildEvent("21", "Ancient Citadel - Benji", EventType.ANCIENT_CITADEL,
                 getNextDayOfWeek(today, listOf(DayOfWeek.SUNDAY)), 21, 0, 60, "Sunday AC - 9:00 PM"
             )
+            */
         ).sortedBy { it.startTime }
     }
 
